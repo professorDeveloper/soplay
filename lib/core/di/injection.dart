@@ -1,0 +1,52 @@
+import 'package:dio/dio.dart';
+import 'package:get_it/get_it.dart';
+import 'package:soplay/core/network/dio_client.dart';
+import 'package:soplay/core/storage/hive_service.dart';
+import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
+import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:soplay/features/home/data/datasources/home_data_source.dart';
+import 'package:soplay/features/home/data/repositories/home_repository_imp.dart';
+import 'package:soplay/features/home/domain/repositories/home_repository.dart';
+
+import '../../features/auth/data/datasources/auth_remote_data_source.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/usecases/login_usecase.dart';
+import '../../features/home/domain/usecase/home_usecase.dart';
+
+final getIt = GetIt.instance;
+
+Future<void> configureDependencies() async {
+  getIt.registerSingleton<HiveService>(HiveService());
+  getIt.registerSingleton<Dio>(DioClient.instance);
+
+  // data sources
+  getIt.registerSingleton<AuthRemoteDataSource>(
+    AuthRemoteDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<HomeDataSource>(HomeDataSource(dio: getIt<Dio>()));
+
+  //Repositories
+  getIt.registerSingleton<AuthRepository>(
+    AuthRepositoryImpl(getIt<AuthRemoteDataSource>(), getIt<HiveService>()),
+  );
+
+  getIt.registerSingleton<HomeRepository>(
+    HomeRepositoryImp(getIt<HomeDataSource>()),
+  );
+
+  // UseCases
+  getIt.registerSingleton<LoginUseCase>(LoginUseCase(getIt<AuthRepository>()));
+  getIt.registerSingleton<RegisterUseCase>(
+    RegisterUseCase(getIt<AuthRepository>()),
+  );
+  getIt.registerSingleton<HomeUseCase>(HomeUseCase(getIt<HomeRepository>()));
+
+  //Bloc
+  getIt.registerFactory(
+    () => AuthBloc(
+      loginUseCase: getIt<LoginUseCase>(),
+      registerUseCase: getIt<RegisterUseCase>(),
+    ),
+  );
+}
