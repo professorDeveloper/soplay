@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../constants/app_constants.dart';
 import '../../features/auth/data/models/user_model.dart';
-import '../../features/auth/domain/entities/user_entity.dart';
 
 class HiveService {
   final Box _authBox = Hive.box(AppConstants.authBox);
@@ -16,9 +15,9 @@ class HiveService {
     return UserModel.fromJson(jsonDecode(raw as String) as Map<String, dynamic>);
   }
 
-  Future<void> saveAuth({required String token, required UserEntity user}) async {
+  Future<void> saveAuth({required String token, required UserModel user}) async {
     await _authBox.put(AppConstants.accessTokenKey, token);
-    await _authBox.put(AppConstants.userKey, jsonEncode((user as UserModel).toJson()));
+    await _authBox.put(AppConstants.userKey, jsonEncode(user.toJson()));
   }
 
   Future<void> clearAuth() async {

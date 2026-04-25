@@ -1,14 +1,26 @@
-class Result<T> {
-  final T? value;
-  final Exception? error;
+sealed class Result<T> {
+  const Result();
 
-  Result({this.value, this.error});
+  bool get isSuccess => this is Success<T>;
+  bool get isError => this is Failure<T>;
 
-  bool get isSuccess => value != null && error == null;
+  T? getOrNull() => switch (this) {
+    Success(:final value) => value,
+    Failure() => null,
+  };
 
-  bool get isError => value == null && error != null;
+  Exception? getErrorOrNull() => switch (this) {
+    Success() => null,
+    Failure(:final error) => error,
+  };
+}
 
-  T? getOrNull() => isSuccess ? value : null;
+final class Success<T> extends Result<T> {
+  final T value;
+  const Success(this.value);
+}
 
-  Exception? getErrorOrNull() => isError ? error : null;
+final class Failure<T> extends Result<T> {
+  final Exception error;
+  const Failure(this.error);
 }

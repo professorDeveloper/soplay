@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart';
+import 'core/router/app_router.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/home/presentation/bloc/home_bloc.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -13,16 +15,12 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
-        // BlocProvider<ProductBloc>(create: (_) => getIt<ProductBloc>()),
-        // BlocProvider<CartBloc>(create: (_) => getIt<CartBloc>()),
+        BlocProvider<HomeBloc>(create: (_) => getIt<HomeBloc>()),
       ],
       child: MaterialApp.router(
         title: 'Soplay',
         debugShowCheckedModeBanner: false,
-        // theme: AppTheme.lightTheme,
-        // darkTheme: AppTheme.darkTheme,
-        // themeMode: ThemeMode.system,
-        // routerConfig: AppRouter.router,
+        routerConfig: AppRouter.router,
         localizationsDelegates: context.localizationDelegates,
         supportedLocales: context.supportedLocales,
         locale: context.locale,

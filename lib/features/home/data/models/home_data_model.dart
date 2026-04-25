@@ -1,6 +1,5 @@
 import 'package:soplay/features/home/domain/entities/home_data_entity.dart';
 
-import '../../domain/entities/home_section_entity.dart';
 import 'home_section_model.dart';
 import 'movie_model.dart';
 

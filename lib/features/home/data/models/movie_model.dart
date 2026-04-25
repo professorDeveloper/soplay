@@ -16,16 +16,18 @@ class MovieModel extends MovieEntity {
 
   factory MovieModel.fromJson(Map<String, dynamic> json) {
     return MovieModel(
-      externalId: json['externalId'],
-      title: json['title'],
-      slug: json['slug'],
-      url: json['url'],
-      provider: json['provider'],
-      thumbnail: json['thumbnail'],
-      year: json['year'],
-      rating: json['rating'],
-      qualities: List<String>.from(json['qualities']),
-      category: json['category'],
+      externalId: json['externalId'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+      provider: json['provider'] as String? ?? '',
+      thumbnail: json['thumbnail'] as String?,
+      year: json['year'] as int?,
+      rating: json['rating'] as int?,
+      qualities: json['qualities'] != null
+          ? List<String>.from(json['qualities'] as List)
+          : null,
+      category: json['category'] as String? ?? '',
     );
   }
 }

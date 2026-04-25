@@ -12,23 +12,25 @@ class HomeRepositoryImp implements HomeRepository {
   const HomeRepositoryImp(this.dataSource);
 
   @override
-  Future<Result<List<MovieEntity>>> loadBanner() {
-    throw UnimplementedError();
+  Future<Result<HomeDataEntity>> loadHome() async {
+    try {
+      final data = await dataSource.loadHome();
+      return Success(data);
+    } on DioException catch (e) {
+      final message =
+          (e.response?.data as Map?)?['message'] ?? e.message ?? 'Xatolik yuz berdi';
+      return Failure(Exception(message));
+    } catch (e) {
+      return Failure(Exception(e.toString()));
+    }
   }
 
   @override
-  Future<Result<HomeDataEntity>> loadHome() async {
-    try {
-      var data = await dataSource.loadHome();
-      return Result(value: data);
-    } on DioException catch (e) {
-      final message =
-          (e.response?.data as Map?)?['message'] ??
-          e.message ??
-          'Xatolik yuz berdi';
-      return Result(error: Exception(message));
-    } catch (e) {
-      return Result(error:Exception(e.toString()));
-    }
+  Future<Result<List<MovieEntity>>> loadBanner() async {
+    final result = await loadHome();
+    return switch (result) {
+      Success(:final value) => Success(value.banner),
+      Failure(:final error) => Failure(error),
+    };
   }
 }

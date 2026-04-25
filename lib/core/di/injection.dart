@@ -7,6 +7,7 @@ import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:soplay/features/home/data/datasources/home_data_source.dart';
 import 'package:soplay/features/home/data/repositories/home_repository_imp.dart';
 import 'package:soplay/features/home/domain/repositories/home_repository.dart';
+import 'package:soplay/features/home/presentation/bloc/home_bloc.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
@@ -18,35 +19,51 @@ final getIt = GetIt.instance;
 
 Future<void> configureDependencies() async {
   getIt.registerSingleton<HiveService>(HiveService());
+
   getIt.registerSingleton<Dio>(DioClient.instance);
 
-  // data sources
+  // Token interceptor: injects Bearer token into every request
+  getIt<Dio>().interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) {
+        final token = getIt<HiveService>().getToken();
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        handler.next(options);
+      },
+    ),
+  );
+
+  // Data sources
   getIt.registerSingleton<AuthRemoteDataSource>(
     AuthRemoteDataSource(dio: getIt<Dio>()),
   );
   getIt.registerSingleton<HomeDataSource>(HomeDataSource(dio: getIt<Dio>()));
 
-  //Repositories
+  // Repositories
   getIt.registerSingleton<AuthRepository>(
     AuthRepositoryImpl(getIt<AuthRemoteDataSource>(), getIt<HiveService>()),
   );
-
   getIt.registerSingleton<HomeRepository>(
     HomeRepositoryImp(getIt<HomeDataSource>()),
   );
 
-  // UseCases
+  // Use cases
   getIt.registerSingleton<LoginUseCase>(LoginUseCase(getIt<AuthRepository>()));
   getIt.registerSingleton<RegisterUseCase>(
     RegisterUseCase(getIt<AuthRepository>()),
   );
   getIt.registerSingleton<HomeUseCase>(HomeUseCase(getIt<HomeRepository>()));
 
-  //Bloc
+  // Blocs
   getIt.registerFactory(
     () => AuthBloc(
       loginUseCase: getIt<LoginUseCase>(),
       registerUseCase: getIt<RegisterUseCase>(),
     ),
+  );
+  getIt.registerFactory(
+    () => HomeBloc(useCase: getIt<HomeUseCase>()),
   );
 }
