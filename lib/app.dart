@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/home/presentation/bloc/home_bloc.dart';
 
@@ -20,6 +21,9 @@ class MyApp extends StatelessWidget {
       child: MaterialApp.router(
         title: 'Soplay',
         debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
         routerConfig: AppRouter.router,
         localizationsDelegates: context.localizationDelegates,
         supportedLocales: context.supportedLocales,

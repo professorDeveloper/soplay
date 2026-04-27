@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\azamo\\\\AndroidStudioProjects\\\\soplay\\\\assets\\\\translations\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\azamo\\\\AndroidStudioProjects\\\\soplay\\\\lib\\\\core\\\\theme\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\azamo\\\\AndroidStudioProjects\\\\soplay\\\\lib\\\\features\\\\splash\\\\presentation\\\\pages\")",
+      "Bash(flutter analyze *)"
     ]
   }
 }
