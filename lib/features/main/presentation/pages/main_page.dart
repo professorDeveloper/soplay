@@ -105,7 +105,7 @@ class _SoplayBottomNav extends StatelessWidget {
                     child: Row(
                       children: List.generate(
                         _items.length,
-                        (i) => Expanded(
+                            (i) => Expanded(
                           child: _BottomNavButton(
                             item: _items[i],
                             selected: index == i,
@@ -201,11 +201,11 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
                       color: color,
                       shadows: widget.selected
                           ? [
-                              Shadow(
-                                color: Colors.white.withValues(alpha: 0.24),
-                                blurRadius: 8,
-                              ),
-                            ]
+                        Shadow(
+                          color: Colors.white.withValues(alpha: 0.24),
+                          blurRadius: 8,
+                        ),
+                      ]
                           : null,
                     ),
                   ),
@@ -220,7 +220,7 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
                     color: color,
                     fontSize: 11,
                     fontWeight:
-                        widget.selected ? FontWeight.w700 : FontWeight.w600,
+                    widget.selected ? FontWeight.w700 : FontWeight.w600,
                     height: 1.0,
                   ),
                 ),

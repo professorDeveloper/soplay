@@ -20,58 +20,56 @@ class _AppleSplashState extends State<AppleSplash>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.black,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.black,
+      ),
+    );
     _setup();
     _run();
   }
 
   void _setup() {
-    // Total 4200ms — slow, elegant, Apple-style
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4200),
+      duration: const Duration(milliseconds: 1500),
     );
 
-    // Very subtle scale — Apple never overdoes animation
     _scale = Tween<double>(begin: 0.94, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.28, curve: Curves.easeOut),
       ),
     );
 
-    // Slow, elegant fade in
     _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.32, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.24, curve: Curves.easeIn),
       ),
     );
 
-    // Shimmer sweep: silver text → white highlight → silver
     _shimmer = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.40, 0.72, curve: Curves.easeInOut),
+        curve: const Interval(0.22, 0.56, curve: Curves.easeInOut),
       ),
     );
 
-    // Fade out — gentle
     _fadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.86, 1.0, curve: Curves.easeIn),
+        curve: const Interval(0.80, 1.0, curve: Curves.easeIn),
       ),
     );
   }
 
   Future<void> _run() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 120));
     await _controller.forward();
+    if (!mounted) return;
     widget.onComplete();
   }
 
@@ -101,7 +99,8 @@ class _AppleSplashState extends State<AppleSplash>
                       ShaderMask(
                         blendMode: BlendMode.srcIn,
                         shaderCallback: (bounds) {
-                          final centerX = -bounds.width +
+                          final centerX =
+                              -bounds.width +
                               _shimmer.value * 3.0 * bounds.width;
                           return LinearGradient(
                             colors: const [
@@ -112,11 +111,13 @@ class _AppleSplashState extends State<AppleSplash>
                               Color(0xFFAAAAAA),
                             ],
                             stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
-                          ).createShader(Rect.fromCenter(
-                            center: Offset(centerX, bounds.height / 2),
-                            width: bounds.width * 0.55,
-                            height: bounds.height,
-                          ));
+                          ).createShader(
+                            Rect.fromCenter(
+                              center: Offset(centerX, bounds.height / 2),
+                              width: bounds.width * 0.55,
+                              height: bounds.height,
+                            ),
+                          );
                         },
                         child: const Text(
                           'soplay',
@@ -130,11 +131,7 @@ class _AppleSplashState extends State<AppleSplash>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Container(
-                        width: 36,
-                        height: 0.5,
-                        color: Colors.white38,
-                      ),
+                      Container(width: 36, height: 0.5, color: Colors.white38),
                     ],
                   ),
                 ),

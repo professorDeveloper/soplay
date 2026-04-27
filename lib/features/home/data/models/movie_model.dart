@@ -19,11 +19,11 @@ class MovieModel extends MovieEntity {
       externalId: json['externalId'] as String? ?? '',
       title: json['title'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
-      url: json['url'] as String? ?? '',
+      url: json['contentUrl'] as String? ?? json['url'] as String? ?? '',
       provider: json['provider'] as String? ?? '',
       thumbnail: json['thumbnail'] as String?,
-      year: json['year'] as int?,
-      rating: json['rating'] as int?,
+      year: (json['year'] as num?)?.toInt(),
+      rating: (json['rating'] as num?)?.toInt(),
       qualities: json['qualities'] != null
           ? List<String>.from(json['qualities'] as List)
           : null,
