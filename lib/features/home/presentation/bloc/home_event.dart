@@ -6,6 +6,10 @@ class HomeEvent extends Equatable {
 }
 
 class HomeLoad extends HomeEvent {
+  final bool silent;
+
+  HomeLoad({this.silent = false});
+
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [silent];
 }

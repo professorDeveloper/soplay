@@ -187,8 +187,6 @@ class CollectionLoadingRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeSkeletonBox(width: 150, height: 14),
-          const SizedBox(height: 12),
           SizedBox(
             height: 160,
             child: ListView.builder(

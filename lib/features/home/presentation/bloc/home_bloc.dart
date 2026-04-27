@@ -13,7 +13,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   Future<void> _onHomeLoad(HomeLoad event, Emitter<HomeState> emit) async {
-    emit(HomeLoading());
+    if (!event.silent || state is! HomeLoaded) {
+      emit(HomeLoading());
+    }
     final result = await useCase();
     switch (result) {
       case Success(:final value):
@@ -22,5 +24,4 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         emit(HomeError(error.toString()));
     }
   }
-
 }

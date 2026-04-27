@@ -262,15 +262,12 @@ class HomeBannerSkeleton extends StatelessWidget {
       460.0,
       580.0,
     );
-    return Container(
+    return SizedBox(
       height: height,
-      color: AppColors.surfaceVariant,
-      child: const Center(
-        child: Icon(
-          Icons.movie_creation_outlined,
-          color: AppColors.textHint,
-          size: 56,
-        ),
+      child: const HomeSkeletonBox(
+        width: double.infinity,
+        height: double.infinity,
+        radius: 0,
       ),
     );
   }

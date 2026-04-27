@@ -21,54 +21,7 @@ class HomeSkeleton extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(child: HomeBannerSkeleton(topPadding: topPad)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const HomeSkeletonBox(
-                          width: 120,
-                          height: 34,
-                          radius: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        const HomeSkeletonBox(
-                          width: 80,
-                          height: 34,
-                          radius: 20,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 38,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 7,
-                        itemBuilder: (_, i) => const Padding(
-                          padding: EdgeInsets.only(right: 8),
-                          child: HomeSkeletonBox(
-                            width: 82,
-                            height: 38,
-                            radius: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             for (int i = 0; i < 3; i++) ...[
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
-                  child: HomeSkeletonBox(width: 150, height: 14),
-                ),
-              ),
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: 195,
