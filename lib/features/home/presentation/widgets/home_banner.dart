@@ -67,10 +67,34 @@ class _HomeBannerState extends State<HomeBanner> {
         children: [
           PageView.builder(
             controller: _ctrl,
+            allowImplicitScrolling: true,
+            physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
             itemCount: widget.banners.length,
             onPageChanged: (i) => _page = i,
-            itemBuilder: (_, index) =>
-                _BannerSlide(movie: widget.banners[index]),
+            itemBuilder: (_, index) {
+              return AnimatedBuilder(
+                animation: _ctrl,
+                child: _BannerSlide(movie: widget.banners[index]),
+                builder: (context, child) {
+                  var page = index.toDouble();
+                  if (_ctrl.position.haveDimensions) {
+                    page = _ctrl.page ?? page;
+                  }
+                  final distance = (page - index).abs().clamp(0.0, 1.0);
+                  final scale = 1.0 - (distance * 0.035);
+                  final opacity = 1.0 - (distance * 0.18);
+
+                  return Opacity(
+                    opacity: opacity,
+                    child: Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.center,
+                      child: child,
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ],
       ),

@@ -54,10 +54,7 @@ class HomeTopBar extends StatelessWidget {
 
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18 * progress,
-          sigmaY: 18 * progress,
-        ),
+        filter: ImageFilter.blur(sigmaX: 18 * progress, sigmaY: 18 * progress),
         child: content,
       ),
     );

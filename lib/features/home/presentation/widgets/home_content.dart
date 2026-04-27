@@ -3,7 +3,6 @@ import 'package:soplay/features/home/presentation/bloc/home_state.dart';
 import 'package:soplay/features/home/presentation/widgets/home_banner.dart';
 import 'package:soplay/features/home/presentation/widgets/home_movie_section.dart';
 import 'package:soplay/features/home/presentation/widgets/home_top_bar.dart';
-
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key, required this.state});
 
@@ -25,7 +24,7 @@ class _HomeContentState extends State<HomeContent> {
 
   void _handleScroll() {
     final nextBlur = _scrollController.hasClients
-        ? (_scrollController.offset / 96).clamp(0.0, 1.0) as double
+        ? (_scrollController.offset / 96).clamp(0.0, 1.0)
         : 0.0;
     if ((nextBlur - _topBarBlur).abs() < 0.02) return;
     setState(() => _topBarBlur = nextBlur);
