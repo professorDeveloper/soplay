@@ -25,12 +25,4 @@ class HomeRepositoryImp implements HomeRepository {
     }
   }
 
-  @override
-  Future<Result<List<MovieEntity>>> loadBanner() async {
-    final result = await loadHome();
-    return switch (result) {
-      Success(:final value) => Success(value.banner),
-      Failure(:final error) => Failure(error),
-    };
-  }
 }

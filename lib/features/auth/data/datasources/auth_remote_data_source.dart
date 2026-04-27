@@ -23,6 +23,7 @@ class AuthRemoteDataSource {
       '/auth/register',
       data: {'email': email, 'password': password, 'username': username},
     );
+
     return AuthModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

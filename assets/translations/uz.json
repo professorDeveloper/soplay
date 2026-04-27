@@ -148,10 +148,10 @@
     "empty": "Kontent mavjud emas."
   },
   "navigation": {
-    "home": "Bosh sahifa",
+    "home": "Asosiy",
     "search": "Qidirish",
     "downloads": "Yuklamalar",
     "profile": "Profil",
-    "my_list": "Mening ro'yxatim"
+    "my_list": "Ro'yxat"
   }
 }
