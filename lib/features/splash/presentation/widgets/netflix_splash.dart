@@ -22,13 +22,11 @@ class _NetflixSplashState extends State<NetflixSplash>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.background,
-      ),
-    );
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: AppColors.background,
+    ));
     _setup();
     _run();
   }
@@ -36,13 +34,13 @@ class _NetflixSplashState extends State<NetflixSplash>
   void _setup() {
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1350),
+      duration: const Duration(milliseconds: 3800),
     );
 
     _sScale = Tween<double>(begin: 0.04, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.28, curve: Cubic(0.19, 1.0, 0.22, 1.0)),
+        curve: const Interval(0.0, 0.30, curve: Cubic(0.19, 1.0, 0.22, 1.0)),
       ),
     );
 
@@ -56,29 +54,28 @@ class _NetflixSplashState extends State<NetflixSplash>
     _oplayWidth = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.18, 0.52, curve: Cubic(0.42, 0.0, 0.58, 1.0)),
+        curve: const Interval(0.27, 0.62, curve: Cubic(0.42, 0.0, 0.58, 1.0)),
       ),
     );
 
     _oplayOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.16, 0.40, curve: Curves.easeIn),
+        curve: const Interval(0.27, 0.48, curve: Curves.easeIn),
       ),
     );
 
     _fadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.78, 1.0, curve: Curves.easeIn),
+        curve: const Interval(0.84, 1.0, curve: Curves.easeIn),
       ),
     );
   }
 
   Future<void> _run() async {
-    await Future.delayed(const Duration(milliseconds: 120));
+    await Future.delayed(const Duration(milliseconds: 500));
     await _controller.forward();
-    if (!mounted) return;
     widget.onComplete();
   }
 

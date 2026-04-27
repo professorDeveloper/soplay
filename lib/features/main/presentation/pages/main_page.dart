@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -29,11 +31,12 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        systemNavigationBarColor: Color(0xFF1A1A1A),
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
         backgroundColor: AppColors.background,
+        extendBody: true,
         body: IndexedStack(
           index: _index,
           children: _tabs,
@@ -77,46 +80,36 @@ class _SoplayBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.24),
-            blurRadius: 18,
-            offset: const Offset(0, -6),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          height: 68 + bottomPad,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E0E0E).withValues(alpha: 0.75),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.08),
+                width: 0.5,
+              ),
+            ),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Material(
-          color: const Color(0xFF1A1A1A),
-          child: SizedBox(
-            height: 74 + bottomPadding,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 9),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: List.generate(
-                        _items.length,
-                            (i) => Expanded(
-                          child: _BottomNavButton(
-                            item: _items[i],
-                            selected: index == i,
-                            onTap: () => onTap(i),
-                          ),
-                        ),
-                      ),
-                    ),
+          child: Padding(
+            padding: EdgeInsets.only(top: 8, bottom: bottomPad == 0 ? 8 : bottomPad),
+            child: Row(
+              children: List.generate(
+                _items.length,
+                (i) => Expanded(
+                  child: _BottomNavButton(
+                    item: _items[i],
+                    selected: index == i,
+                    onTap: () => onTap(i),
                   ),
-                  SizedBox(height: bottomPadding == 0 ? 8 : bottomPadding),
-                ],
+                ),
               ),
             ),
           ),
@@ -161,7 +154,7 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.selected ? Colors.white : const Color(0xFF9A9A9A);
+    final color = widget.selected ? Colors.white : const Color(0xFF7A7A7A);
 
     return Semantics(
       button: true,
@@ -177,51 +170,44 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
         child: AnimatedScale(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
-          scale: _pressed ? 0.94 : 1,
+          scale: _pressed ? 0.92 : 1,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 120),
-            opacity: _pressed ? 0.72 : 1,
+            opacity: _pressed ? 0.68 : 1,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedScale(
-                  duration: const Duration(milliseconds: 160),
-                  curve: Curves.easeOut,
-                  scale: widget.selected ? 1.08 : 1,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutBack,
+                  scale: widget.selected ? 1.1 : 1,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 160),
                     child: Icon(
-                      widget.selected
-                          ? widget.item.activeIcon
-                          : widget.item.icon,
-                      key: ValueKey(
-                        '${widget.item.labelKey}-${widget.selected}',
-                      ),
-                      size: 25,
+                      widget.selected ? widget.item.activeIcon : widget.item.icon,
+                      key: ValueKey('${widget.item.labelKey}-${widget.selected}'),
+                      size: 24,
                       color: color,
                       shadows: widget.selected
-                          ? [
-                        Shadow(
-                          color: Colors.white.withValues(alpha: 0.24),
-                          blurRadius: 8,
-                        ),
-                      ]
+                          ? [Shadow(color: Colors.white.withValues(alpha: 0.28), blurRadius: 10)]
                           : null,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  widget.item.labelKey.tr(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+                const SizedBox(height: 5),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 160),
                   style: TextStyle(
                     color: color,
-                    fontSize: 11,
-                    fontWeight:
-                    widget.selected ? FontWeight.w700 : FontWeight.w600,
-                    height: 1.0,
+                    fontSize: 10.5,
+                    fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                    height: 1,
+                  ),
+                  child: Text(
+                    widget.item.labelKey.tr(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],

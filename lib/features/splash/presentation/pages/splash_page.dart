@@ -27,8 +27,6 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _showNetflix
-        ? NetflixSplash(onComplete: _onComplete)
-        : AppleSplash(onComplete: _onComplete);
+    return NetflixSplash(onComplete: _onComplete);
   }
 }

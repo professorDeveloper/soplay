@@ -9,15 +9,19 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await EasyLocalization.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
+  await Future.wait([
+    EasyLocalization.ensureInitialized(),
+    _initHive(),
   ]);
-  await Hive.initFlutter();
-  await Hive.openBox(AppConstants.authBox);
-  await Hive.openBox(AppConstants.settingsBox);
+
   await configureDependencies();
+  unawaited(
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]),
+  );
+
   runApp(
     EasyLocalization(
       supportedLocales: const [
@@ -31,3 +35,13 @@ void main() async {
     ),
   );
 }
+
+Future<void> _initHive() async {
+  await Hive.initFlutter();
+  await Future.wait([
+    Hive.openBox(AppConstants.authBox),
+    Hive.openBox(AppConstants.settingsBox),
+  ]);
+}
+
+void unawaited(Future<void> future) {}

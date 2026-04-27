@@ -1,6 +1,7 @@
 class MovieEntity {
   final String externalId;
   final String title;
+  final String description;
   final String slug;
   final String url;
   final String provider;
@@ -13,6 +14,7 @@ class MovieEntity {
   MovieEntity({
     required this.externalId,
     required this.title,
+    required this.description,
     required this.slug,
     required this.url,
     required this.provider,
