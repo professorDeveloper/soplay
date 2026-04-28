@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/view_all/view_all_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/view_all/view_all_bloc.dart';
 
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
@@ -16,6 +18,7 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
+        BlocProvider<ViewAllBloc>(create: (_) => getIt<ViewAllBloc>()),
         BlocProvider<HomeBloc>(create: (_) => getIt<HomeBloc>()),
       ],
       child: MaterialApp.router(

@@ -17,7 +17,13 @@ class AppRouter {
         path: "/view-all",
         builder: (context, state) {
           final args = state.extra as ViewAllEntity;
-          return HomeViewAllPage(keyCat: args.type, slug: args.slug);
+          final slug = args.slug;
+          final title = slug.isEmpty ? args.type : args.slug;
+          return HomeViewAllPage(
+            keyCat: args.type,
+            slug: args.slug,
+            title: title,
+          );
         },
       ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),

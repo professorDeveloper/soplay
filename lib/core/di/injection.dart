@@ -7,7 +7,9 @@ import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:soplay/features/home/data/datasources/home_data_source.dart';
 import 'package:soplay/features/home/data/repositories/home_repository_imp.dart';
 import 'package:soplay/features/home/domain/repositories/home_repository.dart';
+import 'package:soplay/features/home/domain/usecase/view_all_usecase.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/view_all/view_all_bloc.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
@@ -22,7 +24,6 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<Dio>(DioClient.instance);
 
-  // Token interceptor: injects Bearer token into every request
   getIt<Dio>().interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
@@ -50,6 +51,9 @@ Future<void> configureDependencies() async {
   );
 
   // Use cases
+  getIt.registerSingleton<ViewAllUseCase>(
+    ViewAllUseCase(getIt<HomeRepository>()),
+  );
   getIt.registerSingleton<LoginUseCase>(LoginUseCase(getIt<AuthRepository>()));
   getIt.registerSingleton<RegisterUseCase>(
     RegisterUseCase(getIt<AuthRepository>()),
@@ -63,7 +67,6 @@ Future<void> configureDependencies() async {
       registerUseCase: getIt<RegisterUseCase>(),
     ),
   );
-  getIt.registerFactory(
-    () => HomeBloc(useCase: getIt<HomeUseCase>()),
-  );
+  getIt.registerFactory(() => ViewAllBloc(useCase: getIt<ViewAllUseCase>()));
+  getIt.registerFactory(() => HomeBloc(useCase: getIt<HomeUseCase>()));
 }

@@ -7,14 +7,17 @@ class ViewAllState extends Equatable {
   List<Object?> get props => [];
 }
 
-class ViewAllLoading extends ViewAllState {}
-
 class ViewAllInitial extends ViewAllState {}
+
+class ViewAllLoading extends ViewAllState {}
 
 class ViewAllError extends ViewAllState {
   final String mesage;
 
-  ViewAllError({required this.mesage});
+  const ViewAllError({required this.mesage});
+
+  @override
+  List<Object?> get props => [mesage];
 }
 
 class ViewAllLoaded extends ViewAllState {
@@ -25,10 +28,13 @@ class ViewAllLoaded extends ViewAllState {
 
   bool get hasMore => currentPage < totalPages;
 
-  ViewAllLoaded({
+  const ViewAllLoaded({
     required this.items,
     required this.currentPage,
     required this.totalPages,
-    this.isLoadingMore = true,
+    this.isLoadingMore = false,
   });
+
+  @override
+  List<Object?> get props => [items, currentPage, totalPages, isLoadingMore];
 }

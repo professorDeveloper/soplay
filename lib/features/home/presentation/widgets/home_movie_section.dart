@@ -39,7 +39,7 @@ class MovieSection extends StatelessWidget {
               onTap: () {
                 context.push(
                   '/view-all',
-                  extra: ViewAllEntity(type: type, slug: slug),
+                  extra: ViewAllEntity(type: type, slug: slug, ),
                 );
               },
               child: Row(
@@ -85,7 +85,6 @@ class MovieSection extends StatelessWidget {
             height: 195,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: movies.length > 16 ? 16 : movies.length,
               itemBuilder: (_, index) => _MovieCard(movie: movies[index]),
