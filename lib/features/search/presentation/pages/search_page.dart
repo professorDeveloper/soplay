@@ -1,149 +1,135 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/search/domain/entities/genre_entity.dart';
+import 'package:soplay/features/search/presentation/blocs/search_bloc/search_bloc.dart';
+import 'package:soplay/features/search/presentation/widgets/search_filter_sheet.dart';
+import 'package:soplay/features/search/presentation/widgets/search_header.dart';
+import 'package:soplay/features/search/presentation/widgets/search_state_views.dart';
 
-class SearchPage extends StatefulWidget {
+class SearchPage extends StatelessWidget {
   const SearchPage({super.key});
 
   @override
-  State<SearchPage> createState() => _SearchPageState();
-}
-
-class _SearchPageState extends State<SearchPage> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Text(
-                'search.title'.tr(),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: _controller,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'search.hint'.tr(),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: AppColors.textHint,
-                  ),
-                  suffixIcon: _controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: AppColors.textHint,
-                            size: 18,
-                          ),
-                          onPressed: () => setState(_controller.clear),
-                        )
-                      : null,
-                ),
-                onChanged: (v) => setState(() {}),
-              ),
-            ),
-            const SizedBox(height: 28),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'search.categories'.tr(),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 2.8,
-                  ),
-                  itemCount: _categories.length,
-                  itemBuilder: (context, i) =>
-                      _CategoryChip(data: _categories[i]),
-                ),
-              ),
-            ),
-            const SizedBox(height: 90),
-          ],
-        ),
-      ),
+    return BlocProvider(
+      create: (_) => getIt<SearchBloc>()..add(const SearchLoad()),
+      child: const _SearchView(),
     );
   }
 }
 
-const _categories = [
-  _Cat('home.action', Icons.local_fire_department_rounded, Color(0xFF8B1A1A)),
-  _Cat('home.comedy', Icons.sentiment_very_satisfied_rounded, Color(0xFF1A5C8B)),
-  _Cat('home.drama', Icons.theater_comedy_rounded, Color(0xFF5C1A8B)),
-  _Cat('home.thriller', Icons.remove_red_eye_rounded, Color(0xFF1A3A5C)),
-  _Cat('home.horror', Icons.dark_mode_rounded, Color(0xFF2A0A2A)),
-  _Cat('home.romance', Icons.favorite_rounded, Color(0xFF8B1A4A)),
-  _Cat('home.sci_fi', Icons.rocket_launch_rounded, Color(0xFF0A3A5C)),
-  _Cat('home.animation', Icons.animation_rounded, Color(0xFF1A6B1A)),
-  _Cat('home.documentary', Icons.videocam_rounded, Color(0xFF5C4A1A)),
-];
+class _SearchView extends StatefulWidget {
+  const _SearchView();
 
-class _Cat {
-  const _Cat(this.key, this.icon, this.color);
-  final String key;
-  final IconData icon;
-  final Color color;
+  @override
+  State<_SearchView> createState() => _SearchViewState();
 }
 
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.data});
-  final _Cat data;
+class _SearchViewState extends State<_SearchView> {
+  final _controller = TextEditingController();
+  final _focus = FocusNode();
+  final _scrollController = ScrollController();
+  final _blurProgress = ValueNotifier<double>(0);
+
+  List<GenreEntity> _cachedGenres = [];
+  SearchFilterSelection _filter = const SearchFilterSelection();
+
+  bool get _hasActiveFilter => _filter.hasActiveFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    _scrollController.dispose();
+    _blurProgress.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final next = (_scrollController.offset / 80).clamp(0.0, 1.0);
+    if ((next - _blurProgress.value).abs() >= 0.015) {
+      _blurProgress.value = next;
+    }
+
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      context.read<SearchBloc>().add(const SearchLoadMore());
+    }
+  }
+
+  void _clearSearch() {
+    _controller.clear();
+    context.read<SearchBloc>().add(const SearchQueryChanged(''));
+  }
+
+  void _openFilter() {
+    final bloc = context.read<SearchBloc>();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => SearchFilterSheet(
+        initialSelection: _filter,
+        genres: _cachedGenres,
+        onApply: (selection) {
+          if (!mounted) return;
+          setState(() => _filter = selection);
+
+          final query = _controller.text.trim();
+          if (selection.genre.isNotEmpty && query.isEmpty) {
+            bloc.add(SearchByGenre(selection.genre));
+          } else if (!selection.hasActiveFilter && query.isEmpty) {
+            bloc.add(const SearchLoad());
+          }
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: data.color,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
+    final topPad = MediaQuery.paddingOf(context).top;
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+    final headerHeight = topPad + 128.0;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Stack(
         children: [
-          Icon(data.icon, color: Colors.white, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              data.key.tr(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
+          BlocConsumer<SearchBloc, SearchState>(
+            listener: (context, state) {
+              if (state is SearchGenresLoaded) {
+                _cachedGenres = state.genres;
+              }
+            },
+            builder: (context, state) => SearchContentView(
+              state: state,
+              scrollController: _scrollController,
+              topPad: headerHeight,
+              bottomPad: bottomPad,
+              onRetry: () => context.read<SearchBloc>().add(const SearchLoad()),
+            ),
+          ),
+          ValueListenableBuilder<double>(
+            valueListenable: _blurProgress,
+            builder: (context, progress, _) => SearchStickyHeader(
+              progress: progress,
+              topPad: topPad,
+              controller: _controller,
+              focus: _focus,
+              hasActiveFilter: _hasActiveFilter,
+              onFilterTap: _openFilter,
+              onQueryChanged: (q) =>
+                  context.read<SearchBloc>().add(SearchQueryChanged(q)),
+              onClear: _clearSearch,
             ),
           ),
         ],

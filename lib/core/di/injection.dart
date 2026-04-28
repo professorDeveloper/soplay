@@ -10,12 +10,19 @@ import 'package:soplay/features/home/domain/repositories/home_repository.dart';
 import 'package:soplay/features/home/domain/usecase/view_all_usecase.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/view_all/view_all_bloc.dart';
+import 'package:soplay/features/search/data/datasources/search_data_source.dart';
+import 'package:soplay/features/search/data/repositories/search_repository_imp.dart';
+import 'package:soplay/features/search/domain/repositories/search_repository.dart';
+import 'package:soplay/features/search/domain/usecases/genre_usecase.dart';
+import 'package:soplay/features/search/domain/usecases/search_usecase.dart';
+import 'package:soplay/features/search/presentation/blocs/search_bloc/search_bloc.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/login_usecase.dart';
 import '../../features/home/domain/usecase/home_usecase.dart';
+import '../navigation/nav_controller.dart';
 
 final getIt = GetIt.instance;
 
@@ -41,6 +48,7 @@ Future<void> configureDependencies() async {
     AuthRemoteDataSource(dio: getIt<Dio>()),
   );
   getIt.registerSingleton<HomeDataSource>(HomeDataSource(dio: getIt<Dio>()));
+  getIt.registerSingleton<SearchDataSource>(SearchDataSource(dio: getIt<Dio>()));
 
   // Repositories
   getIt.registerSingleton<AuthRepository>(
@@ -48,6 +56,9 @@ Future<void> configureDependencies() async {
   );
   getIt.registerSingleton<HomeRepository>(
     HomeRepositoryImp(getIt<HomeDataSource>()),
+  );
+  getIt.registerSingleton<SearchRepository>(
+    SearchRepositoryImp(dataSource: getIt<SearchDataSource>()),
   );
 
   // Use cases
@@ -59,6 +70,8 @@ Future<void> configureDependencies() async {
     RegisterUseCase(getIt<AuthRepository>()),
   );
   getIt.registerSingleton<HomeUseCase>(HomeUseCase(getIt<HomeRepository>()));
+  getIt.registerSingleton<SearchUseCase>(SearchUseCase(repository: getIt<SearchRepository>()));
+  getIt.registerSingleton<GenreUseCase>(GenreUseCase(repository: getIt<SearchRepository>()));
 
   // Blocs
   getIt.registerFactory(
@@ -69,4 +82,11 @@ Future<void> configureDependencies() async {
   );
   getIt.registerFactory(() => ViewAllBloc(useCase: getIt<ViewAllUseCase>()));
   getIt.registerFactory(() => HomeBloc(useCase: getIt<HomeUseCase>()));
+  getIt.registerFactory(() => SearchBloc(
+    searchUseCase: getIt<SearchUseCase>(),
+    genreUseCase: getIt<GenreUseCase>(),
+  ));
+
+  // NavController
+  getIt.registerLazySingleton<NavController>(() => NavController());
 }

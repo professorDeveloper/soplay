@@ -118,10 +118,18 @@
     "no_results_for": "No results for \"{query}\"",
     "recent": "Recent searches",
     "popular_searches": "Popular searches",
-    "categories": "Browse by category",
+    "categories": "Genres",
     "all": "All",
     "movies": "Movies",
-    "series": "Series"
+    "series": "Series",
+    "filter": "Filter",
+    "sort": "Sort by",
+    "sort_newest": "Newest",
+    "sort_oldest": "Oldest",
+    "sort_rating": "Rating",
+    "type": "Type",
+    "apply": "Apply",
+    "clear_filter": "Clear"
   },
   "movie": {
     "rating": "Rating",

@@ -213,7 +213,7 @@ class _BannerInfo extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
             height: 1.08,
             letterSpacing: -0.3,

@@ -118,10 +118,18 @@
     "no_results_for": "Нет результатов для \"{query}\"",
     "recent": "Последние поиски",
     "popular_searches": "Популярные запросы",
-    "categories": "Просмотр по категориям",
+    "categories": "Жанры",
     "all": "Все",
     "movies": "Фильмы",
-    "series": "Сериалы"
+    "series": "Сериалы",
+    "filter": "Фильтр",
+    "sort": "Сортировка",
+    "sort_newest": "Новые",
+    "sort_oldest": "Старые",
+    "sort_rating": "Рейтинг",
+    "type": "Тип",
+    "apply": "Применить",
+    "clear_filter": "Сбросить"
   },
   "movie": {
     "rating": "Рейтинг",

@@ -4,11 +4,14 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/home/presentation/pages/home_page.dart';
 import 'package:soplay/features/my_list/presentation/pages/my_list_page.dart';
 import 'package:soplay/features/profile/presentation/pages/profile_page.dart';
 import 'package:soplay/features/search/presentation/pages/search_page.dart';
+
+import '../../../../core/navigation/nav_controller.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -19,6 +22,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _index = 0;
+  late final NavController _navController;
 
   static const _tabs = <Widget>[
     HomePage(),
@@ -26,6 +30,21 @@ class _MainPageState extends State<MainPage> {
     MyListPage(),
     ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _navController = getIt<NavController>();
+    _navController.index.addListener(_onNavChange);
+  }
+
+  void _onNavChange() => setState(() => _index = _navController.index.value);
+
+  @override
+  void dispose() {
+    _navController.index.removeListener(_onNavChange);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,13 +56,13 @@ class _MainPageState extends State<MainPage> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         extendBody: true,
-        body: IndexedStack(
-          index: _index,
-          children: _tabs,
-        ),
+        body: IndexedStack(index: _index, children: _tabs),
         bottomNavigationBar: _SoplayBottomNav(
           index: _index,
-          onTap: (i) => setState(() => _index = i),
+          onTap: (i) {
+            setState(() => _index = i);
+            _navController.goTo(i);
+          },
         ),
       ),
     );
@@ -52,6 +71,7 @@ class _MainPageState extends State<MainPage> {
 
 class _SoplayBottomNav extends StatelessWidget {
   const _SoplayBottomNav({required this.index, required this.onTap});
+
   final int index;
   final ValueChanged<int> onTap;
 
@@ -99,7 +119,10 @@ class _SoplayBottomNav extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: EdgeInsets.only(top: 8, bottom: bottomPad == 0 ? 8 : bottomPad),
+            padding: EdgeInsets.only(
+              top: 8,
+              bottom: bottomPad == 0 ? 8 : bottomPad,
+            ),
             child: Row(
               children: List.generate(
                 _items.length,
@@ -125,6 +148,7 @@ class _NavItem {
     required this.activeIcon,
     required this.labelKey,
   });
+
   final IconData icon;
   final IconData activeIcon;
   final String labelKey;
@@ -136,6 +160,7 @@ class _BottomNavButton extends StatefulWidget {
     required this.selected,
     required this.onTap,
   });
+
   final _NavItem item;
   final bool selected;
   final VoidCallback onTap;
@@ -184,12 +209,21 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 160),
                     child: Icon(
-                      widget.selected ? widget.item.activeIcon : widget.item.icon,
-                      key: ValueKey('${widget.item.labelKey}-${widget.selected}'),
+                      widget.selected
+                          ? widget.item.activeIcon
+                          : widget.item.icon,
+                      key: ValueKey(
+                        '${widget.item.labelKey}-${widget.selected}',
+                      ),
                       size: 24,
                       color: color,
                       shadows: widget.selected
-                          ? [Shadow(color: Colors.white.withValues(alpha: 0.28), blurRadius: 10)]
+                          ? [
+                              Shadow(
+                                color: Colors.white.withValues(alpha: 0.28),
+                                blurRadius: 10,
+                              ),
+                            ]
                           : null,
                     ),
                   ),
@@ -200,7 +234,9 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
                   style: TextStyle(
                     color: color,
                     fontSize: 10.5,
-                    fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: widget.selected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
                     height: 1,
                   ),
                   child: Text(

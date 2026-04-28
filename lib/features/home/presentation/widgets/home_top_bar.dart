@@ -1,6 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/navigation/nav_controller.dart';
+
 import 'package:soplay/core/theme/app_colors.dart';
 
 class HomeTopBar extends StatelessWidget {
@@ -47,21 +50,20 @@ class HomeTopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _TopBarIcon(icon: Icons.search_rounded, onTap: () {}),
+          _TopBarIcon(
+            icon: Icons.search_rounded,
+            onTap: () => getIt<NavController>().goTo(1),
+          ),
           _TopBarIcon(icon: Icons.notifications_none_rounded, onTap: () {}),
         ],
       ),
     );
 
-    // Skip BackdropFilter entirely when not scrolled — it's a heavy GPU op
     if (progress < 0.01) return content;
 
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18 * progress,
-          sigmaY: 18 * progress,
-        ),
+        filter: ImageFilter.blur(sigmaX: 18 * progress, sigmaY: 18 * progress),
         child: content,
       ),
     );

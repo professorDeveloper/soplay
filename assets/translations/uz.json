@@ -118,10 +118,18 @@
     "no_results_for": "\"{query}\" bo'yicha natija topilmadi",
     "recent": "So'nggi qidiruvlar",
     "popular_searches": "Mashhur qidiruvlar",
-    "categories": "Kategoriya bo'yicha ko'rish",
+    "categories": "Janrlar",
     "all": "Hammasi",
     "movies": "Kinolar",
-    "series": "Seriallar"
+    "series": "Seriallar",
+    "filter": "Filter",
+    "sort": "Saralash",
+    "sort_newest": "Yangi",
+    "sort_oldest": "Eski",
+    "sort_rating": "Reyting",
+    "type": "Tur",
+    "apply": "Qo'llash",
+    "clear_filter": "Tozalash"
   },
   "movie": {
     "rating": "Reyting",
