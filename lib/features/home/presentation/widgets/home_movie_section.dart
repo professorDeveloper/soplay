@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
+import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/home/presentation/widgets/home_shared_widgets.dart';
 import 'package:soplay/features/home/presentation/widgets/home_ui_helpers.dart';
 
@@ -10,9 +12,13 @@ class MovieSection extends StatelessWidget {
     required this.title,
     required this.movies,
     this.isHighlighted = false,
+    required this.type,
+    required this.slug,
   });
 
   final String title;
+  final String type;
+  final String slug;
   final List<MovieEntity> movies;
   final bool isHighlighted;
 
@@ -24,39 +30,55 @@ class MovieSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
-            child: Row(
-              children: [
-                if (isHighlighted) ...[
-                  Container(
-                    width: 3,
-                    height: 17,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(2),
+            padding: const EdgeInsets.fromLTRB(13, 18, 16, 14),
+            child: InkWell(
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(8),
+                bottomRight: Radius.circular(8),
+              ),
+              onTap: () {
+                context.push(
+                  '/view-all',
+                  extra: ViewAllEntity(type: type, slug: slug),
+                );
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  SizedBox(width: 4),
+                  if (isHighlighted) ...[
+                    Container(
+                      width: 3,
+                      height: 17,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textHint,
+                    size: 22,
+                  ),
+                  SizedBox(width: 4),
                 ],
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textHint,
-                  size: 22,
-                ),
-              ],
+              ),
             ),
           ),
           SizedBox(
@@ -151,7 +173,7 @@ class _MovieCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 movieTitle(movie),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
@@ -182,24 +204,26 @@ class CollectionLoadingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 160,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.zero,
-              itemCount: 6,
-              itemBuilder: (_, i) => const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: HomeSkeletonBox(width: 110, height: 155, radius: 10),
+    return ShimmerWrapper(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 160,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.zero,
+                itemCount: 6,
+                itemBuilder: (_, i) => const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: HomeSkeletonBox(width: 110, height: 155, radius: 10),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

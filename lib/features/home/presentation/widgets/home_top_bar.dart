@@ -12,6 +12,7 @@ class HomeTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     final progress = blurProgress.clamp(0.0, 1.0);
+
     final content = Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -52,9 +53,15 @@ class HomeTopBar extends StatelessWidget {
       ),
     );
 
+    // Skip BackdropFilter entirely when not scrolled — it's a heavy GPU op
+    if (progress < 0.01) return content;
+
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18 * progress, sigmaY: 18 * progress),
+        filter: ImageFilter.blur(
+          sigmaX: 18 * progress,
+          sigmaY: 18 * progress,
+        ),
         child: content,
       ),
     );

@@ -7,7 +7,7 @@ import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:soplay/features/home/data/datasources/home_data_source.dart';
 import 'package:soplay/features/home/data/repositories/home_repository_imp.dart';
 import 'package:soplay/features/home/domain/repositories/home_repository.dart';
-import 'package:soplay/features/home/presentation/bloc/home_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';

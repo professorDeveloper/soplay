@@ -1,7 +1,8 @@
 class AppConstants {
   AppConstants._();
 
-  static const String baseUrl = 'https://retailer-sum-via-browser.trycloudflare.com/api';
+  static const String baseUrl =
+      'https://mailman-shelter-ddr-wichita.trycloudflare.com/api';
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
   static const String productsBox = 'products_box';

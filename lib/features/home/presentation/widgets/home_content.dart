@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/theme/app_colors.dart';
-import 'package:soplay/features/home/presentation/bloc/home_bloc.dart';
-import 'package:soplay/features/home/presentation/bloc/home_event.dart';
-import 'package:soplay/features/home/presentation/bloc/home_state.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/widgets/home_banner.dart';
 import 'package:soplay/features/home/presentation/widgets/home_movie_section.dart';
 import 'package:soplay/features/home/presentation/widgets/home_top_bar.dart';
+
+import '../bloc/home/home_state.dart';
 
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key, required this.state});
@@ -19,7 +20,8 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   late final ScrollController _scrollController;
-  double _topBarBlur = 0;
+
+  final _blurProgress = ValueNotifier<double>(0);
 
   @override
   void initState() {
@@ -28,11 +30,11 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   void _handleScroll() {
-    final nextBlur = _scrollController.hasClients
+    final next = _scrollController.hasClients
         ? (_scrollController.offset / 96).clamp(0.0, 1.0)
         : 0.0;
-    if ((nextBlur - _topBarBlur).abs() < 0.02) return;
-    setState(() => _topBarBlur = nextBlur);
+    if ((next - _blurProgress.value).abs() < 0.02) return;
+    _blurProgress.value = next;
   }
 
   @override
@@ -40,6 +42,7 @@ class _HomeContentState extends State<HomeContent> {
     _scrollController
       ..removeListener(_handleScroll)
       ..dispose();
+    _blurProgress.dispose();
     super.dispose();
   }
 
@@ -76,21 +79,16 @@ class _HomeContentState extends State<HomeContent> {
               ),
               if (widget.state.collectionLoading)
                 const SliverToBoxAdapter(child: CollectionLoadingRow()),
-              if (!widget.state.collectionLoading &&
-                  widget.state.collectionItems.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: MovieSection(
-                    title: widget.state.collectionTitle ?? '',
-                    movies: widget.state.collectionItems,
-                    isHighlighted: true,
-                  ),
-                ),
               for (final section in widget.state.homeData.sections)
                 if (section.items.isNotEmpty)
                   SliverToBoxAdapter(
-                    child: MovieSection(
-                      title: section.label,
-                      movies: section.items,
+                    child: RepaintBoundary(
+                      child: MovieSection(
+                        title: section.label,
+                        movies: section.items,
+                        type: section.viewAll.type,
+                        slug: section.viewAll.slug,
+                      ),
                     ),
                   ),
               SliverToBoxAdapter(
@@ -105,7 +103,10 @@ class _HomeContentState extends State<HomeContent> {
           top: 0,
           left: 0,
           right: 0,
-          child: HomeTopBar(blurProgress: _topBarBlur),
+          child: ValueListenableBuilder<double>(
+            valueListenable: _blurProgress,
+            builder: (_, progress, _) => HomeTopBar(blurProgress: progress),
+          ),
         ),
       ],
     );

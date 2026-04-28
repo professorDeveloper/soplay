@@ -6,7 +6,7 @@ import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
-import 'features/home/presentation/bloc/home_bloc.dart';
+import 'features/home/presentation/bloc/home/home_bloc.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

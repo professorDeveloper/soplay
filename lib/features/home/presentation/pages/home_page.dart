@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:soplay/features/home/presentation/bloc/home_bloc.dart';
-import 'package:soplay/features/home/presentation/bloc/home_event.dart';
-import 'package:soplay/features/home/presentation/bloc/home_state.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/widgets/home_content.dart';
 import 'package:soplay/features/home/presentation/widgets/home_state_views.dart';
+
+import '../bloc/home/home_state.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

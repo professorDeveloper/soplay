@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-import '../../domain/entities/home_data_entity.dart';
-import '../../domain/entities/movie.dart';
+import '../../../domain/entities/home_data_entity.dart';
+import '../../../domain/entities/movie.dart';
 
 class HomeState extends Equatable {
   @override
