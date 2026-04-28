@@ -14,7 +14,7 @@ class ViewAllLoading extends ViewAllState {}
 class ViewAllError extends ViewAllState {
   final String mesage;
 
-  const ViewAllError({required this.mesage});
+  ViewAllError({required this.mesage});
 
   @override
   List<Object?> get props => [mesage];
@@ -28,7 +28,7 @@ class ViewAllLoaded extends ViewAllState {
 
   bool get hasMore => currentPage < totalPages;
 
-  const ViewAllLoaded({
+  ViewAllLoaded({
     required this.items,
     required this.currentPage,
     required this.totalPages,
