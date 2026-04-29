@@ -2,7 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
-import 'package:soplay/features/search/presentation/blocs/search_bloc/search_bloc.dart';
+import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 
 class SearchContentView extends StatelessWidget {
   const SearchContentView({

@@ -8,7 +8,6 @@ import 'package:soplay/features/search/domain/entities/genre_entity.dart';
 class SearchFilterSelection {
   const SearchFilterSelection({this.genre = ''});
 
-  // Add new filter fields here, then render a matching section in the sheet.
   final String genre;
 
   bool get hasActiveFilter => genre.isNotEmpty;

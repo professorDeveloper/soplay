@@ -15,7 +15,7 @@ import 'package:soplay/features/search/data/repositories/search_repository_imp.d
 import 'package:soplay/features/search/domain/repositories/search_repository.dart';
 import 'package:soplay/features/search/domain/usecases/genre_usecase.dart';
 import 'package:soplay/features/search/domain/usecases/search_usecase.dart';
-import 'package:soplay/features/search/presentation/blocs/search_bloc/search_bloc.dart';
+import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
