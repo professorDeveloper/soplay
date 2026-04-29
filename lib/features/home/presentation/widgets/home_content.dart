@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
-import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/widgets/home_banner.dart';
@@ -11,6 +9,7 @@ import 'package:soplay/features/home/presentation/widgets/home_top_bar.dart';
 import 'package:soplay/features/search/domain/entities/genre_entity.dart';
 
 import '../bloc/home/home_state.dart';
+import 'genre_card.dart';
 
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key, required this.state});
@@ -152,86 +151,10 @@ class _GenreSection extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: genres.length,
-              itemBuilder: (_, i) => _GenreCard(genre: genres[i]),
+              itemBuilder: (_, i) => GenreCard(genre: genres[i]),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GenreCard extends StatelessWidget {
-  const _GenreCard({required this.genre});
-
-  final GenreEntity genre;
-
-  String get _label {
-    return genre.slug
-        .replaceAll('-', ' ')
-        .split(' ')
-        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push(
-        '/view-all',
-        extra: ViewAllEntity(type: 'genre', slug: genre.slug),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: 110,
-            height: 72,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                genre.image.isNotEmpty
-                    ? Image.network(
-                        genre.image,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const ColoredBox(
-                          color: AppColors.surfaceVariant,
-                        ),
-                      )
-                    : const ColoredBox(color: AppColors.surfaceVariant),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.18),
-                        Colors.black.withValues(alpha: 0.72),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 7,
-                  child: Text(
-                    _label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
