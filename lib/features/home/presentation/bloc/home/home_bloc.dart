@@ -16,10 +16,12 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     if (!event.silent || state is! HomeLoaded) {
       emit(HomeLoading());
     }
+
+    final genreResult = await useCase.callGenres();
     final result = await useCase();
     switch (result) {
       case Success(:final value):
-        emit(HomeLoaded(value));
+        emit(HomeLoaded(genreResult.getOrNull() ?? [], value));
       case Failure(:final error):
         emit(HomeError(error.toString()));
     }

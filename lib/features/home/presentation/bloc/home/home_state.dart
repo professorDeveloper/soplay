@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:soplay/features/search/domain/entities/genre_entity.dart';
 
 import '../../../domain/entities/home_data_entity.dart';
 import '../../../domain/entities/movie.dart';
@@ -25,9 +26,11 @@ class HomeLoaded extends HomeState {
   final HomeDataEntity homeData;
   final String? collectionTitle;
   final List<MovieEntity> collectionItems;
+  final List<GenreEntity> genres;
   final bool collectionLoading;
 
   HomeLoaded(
+    this.genres,
     this.homeData, {
     this.collectionTitle,
     this.collectionItems = const [],
@@ -40,6 +43,7 @@ class HomeLoaded extends HomeState {
     bool? collectionLoading,
   }) {
     return HomeLoaded(
+      genres,
       homeData,
       collectionTitle: collectionTitle ?? this.collectionTitle,
       collectionItems: collectionItems ?? this.collectionItems,
@@ -49,6 +53,7 @@ class HomeLoaded extends HomeState {
 
   @override
   List<Object?> get props => [
+    genres,
     homeData,
     collectionTitle,
     collectionItems,

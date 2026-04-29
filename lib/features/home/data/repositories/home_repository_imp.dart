@@ -4,6 +4,7 @@ import 'package:soplay/features/home/data/datasources/home_data_source.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/home/domain/entities/view_all_paging_entity.dart';
 import 'package:soplay/features/home/domain/repositories/home_repository.dart';
+import 'package:soplay/features/search/domain/entities/genre_entity.dart';
 
 import '../../domain/entities/home_data_entity.dart';
 
@@ -37,7 +38,11 @@ class HomeRepositoryImp implements HomeRepository {
     int page = 1,
   }) async {
     try {
-      final data = await dataSource.loadViewAll( slug: slug, page: page, type: key);
+      final data = await dataSource.loadViewAll(
+        slug: slug,
+        page: page,
+        type: key,
+      );
       return Success(data);
     } on DioException catch (e) {
       final message =
@@ -48,6 +53,17 @@ class HomeRepositoryImp implements HomeRepository {
       return Failure(Exception(message));
     } catch (e) {
       print('message: ${e.toString()}');
+      return Failure(Exception(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<GenreEntity>>> loadGenres() async {
+    try {
+      final data = await dataSource.loadGenres();
+      return Success(data);
+    } catch (e) {
+      print("Message:${e.toString()}");
       return Failure(Exception(e.toString()));
     }
   }

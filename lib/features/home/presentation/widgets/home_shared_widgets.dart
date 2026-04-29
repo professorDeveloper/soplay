@@ -1,50 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 
-
-class _ShimmerScope extends InheritedWidget {
-  const _ShimmerScope({required this.animation, required super.child});
-  final Animation<double> animation;
-
-  static Animation<double>? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_ShimmerScope>()?.animation;
-
-  @override
-  bool updateShouldNotify(_ShimmerScope old) => false;
-}
-
-class ShimmerWrapper extends StatefulWidget {
+class ShimmerWrapper extends StatelessWidget {
   const ShimmerWrapper({super.key, required this.child});
   final Widget child;
 
+  static const _base = Color(0xFF1E1E1E);
+  static const _highlight = Color(0xFF383838);
+
   @override
-  State<ShimmerWrapper> createState() => _ShimmerWrapperState();
+  Widget build(BuildContext context) => Shimmer.fromColors(
+        baseColor: _base,
+        highlightColor: _highlight,
+        child: child,
+      );
 }
-
-class _ShimmerWrapperState extends State<ShimmerWrapper>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      _ShimmerScope(animation: _ctrl, child: widget.child);
-}
-
 
 class HomeNetworkImage extends StatelessWidget {
   const HomeNetworkImage({
@@ -95,7 +66,6 @@ class HomeImagePlaceholder extends StatelessWidget {
   }
 }
 
-
 class HomeSkeletonBox extends StatelessWidget {
   const HomeSkeletonBox({
     super.key,
@@ -108,38 +78,14 @@ class HomeSkeletonBox extends StatelessWidget {
   final double height;
   final double radius;
 
-  static const _base = Color(0xFF1E1E1E);
-  static const _mid = Color(0xFF272727);
-  static const _highlight = Color(0xFF383838);
-
   @override
   Widget build(BuildContext context) {
-    final animation = _ShimmerScope.of(context);
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: SizedBox(
+      child: Container(
         width: width,
         height: height,
-        child: animation != null
-            ? AnimatedBuilder(
-                animation: animation,
-                builder: (_, _) {
-                  final t = animation.value;
-                  final sweep = -1.25 + (t * 2.5);
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment(sweep, -0.4),
-                        end: Alignment(sweep + 0.85, 0.4),
-                        colors: const [_base, _mid, _highlight, _mid, _base],
-                        stops: const [0.0, 0.28, 0.50, 0.72, 1.0],
-                      ),
-                    ),
-                  );
-                },
-              )
-            : const ColoredBox(color: _base),
+        color: Colors.white,
       ),
     );
   }

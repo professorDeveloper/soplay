@@ -1,3 +1,5 @@
+import 'package:soplay/features/search/domain/entities/genre_entity.dart';
+
 import '../../../../core/error/result.dart';
 import '../entities/home_data_entity.dart';
 import '../entities/movie.dart';
@@ -10,4 +12,5 @@ class HomeUseCase {
 
   Future<Result<HomeDataEntity>> call() => homeRepository.loadHome();
 
+  Future<Result<List<GenreEntity>>> callGenres() => homeRepository.loadGenres();
 }

@@ -28,26 +28,48 @@ class SearchStickyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compactProgress = Curves.easeOutCubic.transform(
+      progress.clamp(0.0, 1.0),
+    );
+    final topSpacing = lerpDouble(topPad + 18, topPad + 10, compactProgress)!;
+    final titleHeight = lerpDouble(28, 0, compactProgress)!;
+    final titleGap = lerpDouble(14, 8, compactProgress)!;
+    final bottomGap = lerpDouble(16, 10, compactProgress)!;
+    final backgroundColor = progress < 0.01
+        ? AppColors.background
+        : const Color(0xFF181818).withValues(alpha: 0.82);
+
     final inner = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(height: topPad + 18),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'search.title'.tr(),
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              height: 1,
+        SizedBox(height: topSpacing),
+        ClipRect(
+          child: SizedBox(
+            height: titleHeight,
+            child: Opacity(
+              opacity: 1 - compactProgress,
+              child: Transform.translate(
+                offset: Offset(0, -10 * compactProgress),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'search.title'.tr(),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: titleGap),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomGap),
           child: Row(
             children: [
               Expanded(
@@ -66,16 +88,12 @@ class SearchStickyHeader extends StatelessWidget {
       ],
     );
 
-    if (progress < 0.01) {
-      return Container(color: AppColors.background, child: inner);
-    }
-
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 20 * progress, sigmaY: 20 * progress),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF181818).withValues(alpha: 0.82),
+            color: backgroundColor,
             border: Border(
               bottom: BorderSide(
                 color: Colors.white.withValues(alpha: 0.06 * progress),
@@ -111,6 +129,7 @@ class _SearchFieldState extends State<_SearchField> {
   void initState() {
     super.initState();
     widget.controller.addListener(_rebuild);
+    widget.focus.addListener(_rebuild);
   }
 
   void _rebuild() => setState(() {});
@@ -118,31 +137,48 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   void dispose() {
     widget.controller.removeListener(_rebuild);
+    widget.focus.removeListener(_rebuild);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final focused = widget.focus.hasFocus;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
           height: 46,
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.9),
+            color: focused
+                ? AppColors.surfaceVariant.withValues(alpha: 0.96)
+                : AppColors.surface.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(
+              color: focused
+                  ? AppColors.primary.withValues(alpha: 0.58)
+                  : Colors.white.withValues(alpha: 0.08),
+              width: focused ? 1.2 : 1,
+            ),
           ),
           child: TextField(
             controller: widget.controller,
             focusNode: widget.focus,
+            cursorRadius: const Radius.circular(14),
+            textInputAction: TextInputAction.search,
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 15,
               height: 1,
             ),
             decoration: InputDecoration(
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+              ),
               hintText: 'search.hint'.tr(),
               hintStyle: const TextStyle(
                 color: AppColors.textHint,
@@ -168,6 +204,7 @@ class _SearchFieldState extends State<_SearchField> {
               isDense: true,
             ),
             onChanged: widget.onChanged,
+            onTapOutside: (_) => widget.focus.unfocus(),
           ),
         ),
       ),

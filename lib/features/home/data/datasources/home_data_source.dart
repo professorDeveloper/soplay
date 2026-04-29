@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:soplay/features/home/domain/entities/view_all_paging_entity.dart';
+import 'package:soplay/features/search/data/model/genre_model.dart';
 
 import '../models/home_data_model.dart';
 import '../models/movie_model.dart';
@@ -13,6 +14,11 @@ class HomeDataSource {
   Future<HomeDataModel> loadHome() async {
     final results = await dio.get('/contents/home');
     return HomeDataModel.fromJson((results).data as Map<String, dynamic>);
+  }
+
+  Future<List<GenreModel>> loadGenres() async {
+    final result = await dio.get("/contents/genres");
+    return (result.data['items'] as List).map((e) => GenreModel.fromJson(e)).toList();
   }
 
   Future<ViewAllPagingModel> loadViewAll({

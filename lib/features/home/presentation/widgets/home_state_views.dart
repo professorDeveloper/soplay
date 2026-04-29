@@ -22,6 +22,35 @@ class HomeSkeleton extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: HomeBannerSkeleton(topPadding: topPad)),
+              // Genre row skeleton
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const HomeSkeletonBox(width: 80, height: 15, radius: 4),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 72,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.zero,
+                          itemCount: 6,
+                          itemBuilder: (_, _) => const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: HomeSkeletonBox(
+                              width: 110,
+                              height: 72,
+                              radius: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               for (int i = 0; i < 3; i++) ...[
                 // Section header skeleton
                 SliverToBoxAdapter(

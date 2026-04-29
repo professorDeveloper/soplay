@@ -58,6 +58,9 @@ dependencies:
   dartz: ^0.10.1
   json_annotation: ^4.11.0
 
+  # UI
+  shimmer: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

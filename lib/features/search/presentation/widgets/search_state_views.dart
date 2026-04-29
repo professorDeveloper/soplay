@@ -143,6 +143,7 @@ class _SearchResultsView extends StatelessWidget {
 
     return CustomScrollView(
       controller: scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverPadding(
           padding: EdgeInsets.fromLTRB(16, topPad + 8, 16, 8),
