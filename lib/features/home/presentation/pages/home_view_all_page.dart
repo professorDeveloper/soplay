@@ -9,9 +9,9 @@ import 'package:soplay/features/home/presentation/widgets/view_all_widgets.dart'
 class HomeViewAllPage extends StatefulWidget {
   const HomeViewAllPage({
     super.key,
-    required this.keyCat,
-    required this.title,
-    this.slug = '',
+      required this.keyCat,
+      required this.title,
+      this.slug = '',
   });
 
   final String keyCat;

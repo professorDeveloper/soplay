@@ -27,6 +27,35 @@ class HiveService {
 
   bool get isLoggedIn => getToken() != null;
 
+  String? getAniListToken() => _authBox.get(AppConstants.aniListTokenKey);
+  bool get isAniListConnected => getAniListToken() != null;
+
+  Future<void> saveAniListToken(String token) async =>
+      _authBox.put(AppConstants.aniListTokenKey, token);
+
+  Future<void> clearAniListToken() async =>
+      _authBox.delete(AppConstants.aniListTokenKey);
+
+  String? getMalToken() => _authBox.get(AppConstants.malTokenKey);
+  bool get isMalConnected => getMalToken() != null;
+
+  Future<void> saveMalToken(String token) async =>
+      _authBox.put(AppConstants.malTokenKey, token);
+
+  Future<void> clearMalToken() async =>
+      _authBox.delete(AppConstants.malTokenKey);
+
+  String getCurrentProvider() {
+    return _settingsBox.get(
+      AppConstants.currentProviderKey,
+      defaultValue: AppConstants.defaultProviderId,
+    );
+  }
+
+  Future<void> saveCurrentProvider(String providerId) async {
+    await _settingsBox.put(AppConstants.currentProviderKey, providerId);
+  }
+
   String getLanguage() {
     return _settingsBox.get(AppConstants.languageKey, defaultValue: 'en');
   }
