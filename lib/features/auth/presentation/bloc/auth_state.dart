@@ -15,10 +15,20 @@ class AuthError extends AuthState {
   final String message;
 
   AuthError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
 }
 
 class AuthLoaded extends AuthState {
   final AuthToken token;
 
   AuthLoaded({required this.token});
+
+  @override
+  List<Object?> get props => [
+    token.accessToken,
+    token.refreshToken,
+    token.user,
+  ];
 }

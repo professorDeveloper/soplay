@@ -8,7 +8,15 @@ class ProviderDataSource {
 
   Future<List<ProviderModel>> getProviders() async {
     final response = await dio.get('/contents/providers');
-    return (response.data['items'] as List)
+    final data = response.data;
+    final items = switch (data) {
+      {'items': final List items} => items,
+      {'data': final List items} => items,
+      final List items => items,
+      _ => const [],
+    };
+
+    return items
         .map((e) => ProviderModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }

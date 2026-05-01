@@ -1,8 +1,15 @@
 import 'user_entity.dart';
 
 class AuthToken {
-  final String token;
+  final String accessToken;
+  final String refreshToken;
   final UserEntity user;
 
-  AuthToken({required this.token, required this.user});
+  AuthToken({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.user,
+  });
+
+  String get token => accessToken;
 }

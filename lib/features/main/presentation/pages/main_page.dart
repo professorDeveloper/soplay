@@ -8,10 +8,10 @@ import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/home/presentation/pages/home_page.dart';
 import 'package:soplay/features/my_list/presentation/pages/my_list_page.dart';
-import 'package:soplay/features/profile/presentation/pages/profile_page.dart';
 import 'package:soplay/features/search/presentation/pages/search_page.dart';
 
 import '../../../../core/navigation/nav_controller.dart';
+import '../../../profile/presentation/pages/profile_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});

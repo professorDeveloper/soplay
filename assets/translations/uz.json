@@ -49,7 +49,9 @@
     "terms_agree": "Foydalanish shartlari va maxfiylik siyosatiga roziman",
     "or_continue_with": "Yoki davom eting",
     "welcome_back": "Xush kelibsiz",
-    "create_account": "Akkaunt yaratish"
+    "create_account": "Akkaunt yaratish",
+    "login_subtitle": "Profilingiz va saqlangan ma'lumotlaringiz uchun kiring.",
+    "register_subtitle": "Email, username va parol bilan yangi akkaunt oching."
   },
   "home": {
     "title": "Bosh sahifa",
@@ -109,7 +111,16 @@
     "downloads": "Yuklamalar",
     "watch_history": "Ko'rish tarixi",
     "manage_profiles": "Profillarni boshqarish",
-    "parental_controls": "Ota-ona nazorati"
+    "parental_controls": "Ota-ona nazorati",
+    "guest_title": "Profilga kiring",
+    "guest_subtitle": "Sevimlilar va tarixni saqlash uchun akkauntingizga kiring.",
+    "auth_provider": "Login turi",
+    "joined": "Qo'shilgan sana",
+    "providers": "Providers",
+    "providers_error": "Providerlarni yuklab bo'lmadi.",
+    "logout_confirm": "Akkauntingizdan chiqmoqchimisiz?",
+    "connections": "Connections",
+    "coming_soon": "Tez kunda"
   },
   "search": {
     "title": "Qidirish",

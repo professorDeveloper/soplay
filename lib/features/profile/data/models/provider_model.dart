@@ -11,9 +11,16 @@ class ProviderModel extends ProviderEntity {
   });
 
   factory ProviderModel.fromJson(Map<String, dynamic> json) {
+    final id =
+        json['id'] as String? ??
+        json['_id'] as String? ??
+        json['slug'] as String? ??
+        '';
+    final name = json['name'] as String? ?? id;
+
     return ProviderModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: id,
+      name: name,
       image: json['image'] as String? ?? '',
       url: json['url'] as String? ?? '',
       description: json['description'] as String? ?? '',

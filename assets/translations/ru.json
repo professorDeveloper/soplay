@@ -49,7 +49,9 @@
     "terms_agree": "Я согласен с условиями использования и политикой конфиденциальности",
     "or_continue_with": "Или продолжите с",
     "welcome_back": "С возвращением",
-    "create_account": "Создать аккаунт"
+    "create_account": "Создать аккаунт",
+    "login_subtitle": "Войдите, чтобы использовать профиль и сохраненные данные.",
+    "register_subtitle": "Создайте аккаунт с email, именем пользователя и паролем."
   },
   "home": {
     "title": "Главная",
@@ -109,7 +111,16 @@
     "downloads": "Загрузки",
     "watch_history": "История просмотров",
     "manage_profiles": "Управление профилями",
-    "parental_controls": "Родительский контроль"
+    "parental_controls": "Родительский контроль",
+    "guest_title": "Войдите в профиль",
+    "guest_subtitle": "Войдите, чтобы сохранять избранное и историю просмотров.",
+    "auth_provider": "Тип входа",
+    "joined": "Дата регистрации",
+    "providers": "Providers",
+    "providers_error": "Не удалось загрузить провайдеров.",
+    "logout_confirm": "Выйти из аккаунта?",
+    "connections": "Connections",
+    "coming_soon": "Скоро"
   },
   "search": {
     "title": "Поиск",

@@ -45,17 +45,81 @@ Future<void> configureDependencies() async {
         }
         handler.next(options);
       },
+      onError: (error, handler) async {
+        final statusCode = error.response?.statusCode;
+        final path = error.requestOptions.path;
+        final isAuthEntryPoint =
+            path.contains('/auth/login') || path.contains('/auth/register');
+        final isRefreshRequest =
+            path.contains('/auth/refresh') ||
+            error.requestOptions.extra['skipAuthRefresh'] == true;
+
+        if (statusCode != 401 || isAuthEntryPoint || isRefreshRequest) {
+          handler.next(error);
+          return;
+        }
+
+        final hive = getIt<HiveService>();
+        final refreshToken = hive.getRefreshToken();
+        final user = hive.getUser();
+        if (refreshToken == null || refreshToken.isEmpty || user == null) {
+          await hive.clearAuth();
+          handler.next(error);
+          return;
+        }
+
+        try {
+          final dio = getIt<Dio>();
+          final refreshDio = Dio(
+            BaseOptions(
+              baseUrl: dio.options.baseUrl,
+              connectTimeout: dio.options.connectTimeout,
+              receiveTimeout: dio.options.receiveTimeout,
+              headers: {'Content-Type': 'application/json'},
+            ),
+          );
+          final response = await refreshDio.post<Map<String, dynamic>>(
+            '/auth/refresh',
+            data: {'refreshToken': refreshToken},
+            options: Options(extra: {'skipAuthRefresh': true}),
+          );
+          final data = response.data ?? {};
+          final accessToken = data['accessToken'] as String? ?? '';
+          final nextRefreshToken =
+              data['refreshToken'] as String? ?? refreshToken;
+
+          if (accessToken.isEmpty) {
+            throw DioException(
+              requestOptions: error.requestOptions,
+              message: 'Token refresh failed',
+            );
+          }
+
+          await hive.saveTokens(
+            accessToken: accessToken,
+            refreshToken: nextRefreshToken,
+          );
+
+          final retryOptions = error.requestOptions;
+          retryOptions.headers['Authorization'] = 'Bearer $accessToken';
+          final retryResponse = await dio.fetch<dynamic>(retryOptions);
+          handler.resolve(retryResponse);
+        } catch (_) {
+          await hive.clearAuth();
+          handler.next(error);
+        }
+      },
     ),
   );
 
-  // Data sources
   getIt.registerSingleton<AuthRemoteDataSource>(
     AuthRemoteDataSource(dio: getIt<Dio>()),
   );
   getIt.registerSingleton<HomeDataSource>(HomeDataSource(dio: getIt<Dio>()));
-  getIt.registerSingleton<SearchDataSource>(SearchDataSource(dio: getIt<Dio>()));
+  getIt.registerSingleton<SearchDataSource>(
+    SearchDataSource(dio: getIt<Dio>()),
+  );
 
-  // Repositories
   getIt.registerSingleton<AuthRepository>(
     AuthRepositoryImpl(getIt<AuthRemoteDataSource>(), getIt<HiveService>()),
   );
@@ -72,7 +136,6 @@ Future<void> configureDependencies() async {
     ProviderRepositoryImpl(getIt<ProviderDataSource>()),
   );
 
-  // Use cases
   getIt.registerSingleton<ViewAllUseCase>(
     ViewAllUseCase(getIt<HomeRepository>()),
   );
@@ -81,30 +144,38 @@ Future<void> configureDependencies() async {
     RegisterUseCase(getIt<AuthRepository>()),
   );
   getIt.registerSingleton<HomeUseCase>(HomeUseCase(getIt<HomeRepository>()));
-  getIt.registerSingleton<SearchUseCase>(SearchUseCase(repository: getIt<SearchRepository>()));
-  getIt.registerSingleton<GenreUseCase>(GenreUseCase(repository: getIt<SearchRepository>()));
+  getIt.registerSingleton<SearchUseCase>(
+    SearchUseCase(repository: getIt<SearchRepository>()),
+  );
+  getIt.registerSingleton<GenreUseCase>(
+    GenreUseCase(repository: getIt<SearchRepository>()),
+  );
   getIt.registerSingleton<GetProvidersUseCase>(
     GetProvidersUseCase(getIt<ProviderRepository>()),
   );
 
-  // Blocs
   getIt.registerFactory(
     () => AuthBloc(
       loginUseCase: getIt<LoginUseCase>(),
       registerUseCase: getIt<RegisterUseCase>(),
+      authRepository: getIt<AuthRepository>(),
+      hiveService: getIt<HiveService>(),
     ),
   );
   getIt.registerFactory(() => ViewAllBloc(useCase: getIt<ViewAllUseCase>()));
   getIt.registerFactory(() => HomeBloc(useCase: getIt<HomeUseCase>()));
-  getIt.registerFactory(() => SearchBloc(
-    searchUseCase: getIt<SearchUseCase>(),
-    genreUseCase: getIt<GenreUseCase>(),
-  ));
-  getIt.registerFactory(() => ProviderBloc(
-    useCase: getIt<GetProvidersUseCase>(),
-    hiveService: getIt<HiveService>(),
-  ));
+  getIt.registerFactory(
+    () => SearchBloc(
+      searchUseCase: getIt<SearchUseCase>(),
+      genreUseCase: getIt<GenreUseCase>(),
+    ),
+  );
+  getIt.registerFactory(
+    () => ProviderBloc(
+      useCase: getIt<GetProvidersUseCase>(),
+      hiveService: getIt<HiveService>(),
+    ),
+  );
 
-  // NavController
   getIt.registerLazySingleton<NavController>(() => NavController());
 }

@@ -8,24 +8,44 @@ class HiveService {
   final Box _settingsBox = Hive.box(AppConstants.settingsBox);
 
   String? getToken() => _authBox.get(AppConstants.accessTokenKey);
+  String? getRefreshToken() => _authBox.get(AppConstants.refreshTokenKey);
 
   UserModel? getUser() {
     final raw = _authBox.get(AppConstants.userKey);
     if (raw == null) return null;
-    return UserModel.fromJson(jsonDecode(raw as String) as Map<String, dynamic>);
+    return UserModel.fromJson(
+      jsonDecode(raw as String) as Map<String, dynamic>,
+    );
   }
 
-  Future<void> saveAuth({required String token, required UserModel user}) async {
-    await _authBox.put(AppConstants.accessTokenKey, token);
+  Future<void> saveAuth({
+    required String accessToken,
+    required String refreshToken,
+    required UserModel user,
+  }) async {
+    await saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+    await _authBox.put(AppConstants.userKey, jsonEncode(user.toJson()));
+  }
+
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await _authBox.put(AppConstants.accessTokenKey, accessToken);
+    await _authBox.put(AppConstants.refreshTokenKey, refreshToken);
+  }
+
+  Future<void> saveUser(UserModel user) async {
     await _authBox.put(AppConstants.userKey, jsonEncode(user.toJson()));
   }
 
   Future<void> clearAuth() async {
     await _authBox.delete(AppConstants.accessTokenKey);
+    await _authBox.delete(AppConstants.refreshTokenKey);
     await _authBox.delete(AppConstants.userKey);
   }
 
-  bool get isLoggedIn => getToken() != null;
+  bool get isLoggedIn => getToken()?.isNotEmpty == true;
 
   String? getAniListToken() => _authBox.get(AppConstants.aniListTokenKey);
   bool get isAniListConnected => getAniListToken() != null;
