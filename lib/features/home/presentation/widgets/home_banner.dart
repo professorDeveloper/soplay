@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/home/presentation/widgets/home_shared_widgets.dart';
 import 'package:soplay/features/home/presentation/widgets/home_ui_helpers.dart';
@@ -105,6 +107,23 @@ class _HomeBannerState extends State<HomeBanner> {
 class _BannerSlide extends StatelessWidget {
   const _BannerSlide({required this.movie});
 
+  final MovieEntity movie;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (movie.url.isNotEmpty) {
+          context.push('/detail', extra: DetailArgs(contentUrl: movie.url, preview: movie));
+        }
+      },
+      child: _BannerSlideContent(movie: movie),
+    );
+  }
+}
+
+class _BannerSlideContent extends StatelessWidget {
+  const _BannerSlideContent({required this.movie});
   final MovieEntity movie;
 
   @override

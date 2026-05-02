@@ -1,6 +1,13 @@
 import 'package:go_router/go_router.dart';
 import 'package:soplay/features/auth/presentation/pages/login_page.dart';
 import 'package:soplay/features/auth/presentation/pages/register_page.dart';
+import 'package:soplay/features/detail/domain/entities/detail_args.dart';
+import 'package:soplay/features/detail/domain/entities/episodes_args.dart';
+import 'package:soplay/features/detail/domain/entities/player_args.dart';
+import 'package:soplay/features/detail/presentation/pages/actor_page.dart';
+import 'package:soplay/features/detail/presentation/pages/detail_page.dart';
+import 'package:soplay/features/detail/presentation/pages/episodes_page.dart';
+import 'package:soplay/features/detail/presentation/pages/player_page.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/main/presentation/pages/main_page.dart';
 import 'package:soplay/features/splash/presentation/pages/splash_page.dart';
@@ -24,6 +31,34 @@ class AppRouter {
             slug: args.slug,
             title: title,
           );
+        },
+      ),
+      GoRoute(
+        path: '/detail',
+        builder: (context, state) {
+          final args = state.extra as DetailArgs;
+          return DetailPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/episodes',
+        builder: (context, state) {
+          final args = state.extra as EpisodesArgs;
+          return EpisodesPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/actor',
+        builder: (context, state) {
+          final args = state.extra as ActorArgs;
+          return ActorPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/player',
+        builder: (context, state) {
+          final args = state.extra as PlayerArgs;
+          return PlayerPage(args: args);
         },
       ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),

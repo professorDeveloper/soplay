@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 
@@ -185,7 +187,16 @@ class _SearchMovieCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (movie.url.isEmpty) return;
+        context.push(
+          '/detail',
+          extra: DetailArgs(contentUrl: movie.url, preview: movie),
+        );
+      },
+      child: ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Stack(
         fit: StackFit.expand,
@@ -259,6 +270,7 @@ class _SearchMovieCard extends StatelessWidget {
             ),
         ],
       ),
+    ),
     );
   }
 

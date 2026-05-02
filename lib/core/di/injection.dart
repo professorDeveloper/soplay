@@ -1,9 +1,18 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
+import 'package:soplay/core/network/auth_interceptor.dart';
 import 'package:soplay/core/network/dio_client.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:soplay/features/detail/data/datasources/detail_data_source.dart';
+import 'package:soplay/features/detail/data/repositories/detail_repository_impl.dart';
+import 'package:soplay/features/detail/domain/repositories/detail_repository.dart';
+import 'package:soplay/features/detail/domain/usecases/get_detail_usecase.dart';
+import 'package:soplay/features/detail/domain/usecases/get_episodes_usecase.dart';
+import 'package:soplay/features/detail/domain/usecases/resolve_media_usecase.dart';
+import 'package:soplay/features/detail/presentation/blocs/detail_bloc/detail_bloc.dart';
+import 'package:soplay/features/detail/presentation/blocs/episodes_bloc/episodes_bloc.dart';
 import 'package:soplay/features/home/data/datasources/home_data_source.dart';
 import 'package:soplay/features/home/data/repositories/home_repository_imp.dart';
 import 'package:soplay/features/home/domain/repositories/home_repository.dart';
@@ -34,88 +43,19 @@ final getIt = GetIt.instance;
 Future<void> configureDependencies() async {
   getIt.registerSingleton<HiveService>(HiveService());
 
-  getIt.registerSingleton<Dio>(DioClient.instance);
-
-  getIt<Dio>().interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) {
-        final token = getIt<HiveService>().getToken();
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) async {
-        final statusCode = error.response?.statusCode;
-        final path = error.requestOptions.path;
-        final isAuthEntryPoint =
-            path.contains('/auth/login') || path.contains('/auth/register');
-        final isRefreshRequest =
-            path.contains('/auth/refresh') ||
-            error.requestOptions.extra['skipAuthRefresh'] == true;
-
-        if (statusCode != 401 || isAuthEntryPoint || isRefreshRequest) {
-          handler.next(error);
-          return;
-        }
-
-        final hive = getIt<HiveService>();
-        final refreshToken = hive.getRefreshToken();
-        final user = hive.getUser();
-        if (refreshToken == null || refreshToken.isEmpty || user == null) {
-          await hive.clearAuth();
-          handler.next(error);
-          return;
-        }
-
-        try {
-          final dio = getIt<Dio>();
-          final refreshDio = Dio(
-            BaseOptions(
-              baseUrl: dio.options.baseUrl,
-              connectTimeout: dio.options.connectTimeout,
-              receiveTimeout: dio.options.receiveTimeout,
-              headers: {'Content-Type': 'application/json'},
-            ),
-          );
-          final response = await refreshDio.post<Map<String, dynamic>>(
-            '/auth/refresh',
-            data: {'refreshToken': refreshToken},
-            options: Options(extra: {'skipAuthRefresh': true}),
-          );
-          final data = response.data ?? {};
-          final accessToken = data['accessToken'] as String? ?? '';
-          final nextRefreshToken =
-              data['refreshToken'] as String? ?? refreshToken;
-
-          if (accessToken.isEmpty) {
-            throw DioException(
-              requestOptions: error.requestOptions,
-              message: 'Token refresh failed',
-            );
-          }
-
-          await hive.saveTokens(
-            accessToken: accessToken,
-            refreshToken: nextRefreshToken,
-          );
-
-          final retryOptions = error.requestOptions;
-          retryOptions.headers['Authorization'] = 'Bearer $accessToken';
-          final retryResponse = await dio.fetch<dynamic>(retryOptions);
-          handler.resolve(retryResponse);
-        } catch (_) {
-          await hive.clearAuth();
-          handler.next(error);
-        }
-      },
-    ),
+  final dio = DioClient.instance;
+  dio.interceptors.add(
+    AuthInterceptor(hiveService: getIt<HiveService>(), dio: dio),
   );
+  getIt.registerSingleton<Dio>(dio);
+
+
 
   getIt.registerSingleton<AuthRemoteDataSource>(
     AuthRemoteDataSource(dio: getIt<Dio>()),
   );
   getIt.registerSingleton<HomeDataSource>(HomeDataSource(dio: getIt<Dio>()));
+  getIt.registerSingleton<DetailDataSource>(DetailDataSource(dio: getIt<Dio>()));
   getIt.registerSingleton<SearchDataSource>(
     SearchDataSource(dio: getIt<Dio>()),
   );
@@ -129,6 +69,9 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<SearchRepository>(
     SearchRepositoryImp(dataSource: getIt<SearchDataSource>()),
   );
+  getIt.registerSingleton<DetailRepository>(
+    DetailRepositoryImpl(getIt<DetailDataSource>()),
+  );
   getIt.registerSingleton<ProviderDataSource>(
     ProviderDataSource(dio: getIt<Dio>()),
   );
@@ -136,6 +79,15 @@ Future<void> configureDependencies() async {
     ProviderRepositoryImpl(getIt<ProviderDataSource>()),
   );
 
+  getIt.registerSingleton<GetDetailUseCase>(
+    GetDetailUseCase(getIt<DetailRepository>()),
+  );
+  getIt.registerSingleton<GetEpisodesUseCase>(
+    GetEpisodesUseCase(getIt<DetailRepository>()),
+  );
+  getIt.registerSingleton<ResolveMediaUseCase>(
+    ResolveMediaUseCase(getIt<DetailRepository>()),
+  );
   getIt.registerSingleton<ViewAllUseCase>(
     ViewAllUseCase(getIt<HomeRepository>()),
   );
@@ -161,6 +113,10 @@ Future<void> configureDependencies() async {
       authRepository: getIt<AuthRepository>(),
       hiveService: getIt<HiveService>(),
     ),
+  );
+  getIt.registerFactory(() => DetailBloc(useCase: getIt<GetDetailUseCase>()));
+  getIt.registerFactory(
+    () => EpisodesBloc(useCase: getIt<GetEpisodesUseCase>()),
   );
   getIt.registerFactory(() => ViewAllBloc(useCase: getIt<ViewAllUseCase>()));
   getIt.registerFactory(() => HomeBloc(useCase: getIt<HomeUseCase>()));

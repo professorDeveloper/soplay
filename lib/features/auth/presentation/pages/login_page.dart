@@ -147,7 +147,7 @@ class _LoginPageState extends State<LoginPage> {
                       _AuthSwitchPrompt(
                         text: 'auth.dont_have_account'.tr(),
                         action: 'auth.sign_up'.tr(),
-                        onTap: () => context.go('/register'),
+                        onTap: () => context.pushReplacement('/register'),
                       ),
                     ],
                   ),

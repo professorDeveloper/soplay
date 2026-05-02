@@ -1,10 +1,7 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:soplay/core/constants/app_constants.dart';
 import 'package:soplay/core/di/injection.dart';
-import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/auth/domain/entities/user_entity.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
@@ -14,11 +11,6 @@ import 'package:soplay/features/profile/domain/entities/provider_entity.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_bloc.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_event.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_state.dart';
-
-final _tileIconDecoration = BoxDecoration(
-  color: AppColors.textSecondary.withValues(alpha: 0.12),
-  borderRadius: BorderRadius.circular(8),
-);
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -46,6 +38,12 @@ class _ProfileViewState extends State<_ProfileView> {
     context.read<AuthBloc>().add(const AuthStarted());
   }
 
+  Future<void> _onRefresh() async {
+    context.read<AuthBloc>().add(const AuthStarted());
+    context.read<ProviderBloc>().add(const ProviderLoad());
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.paddingOf(context).top;
@@ -53,61 +51,67 @@ class _ProfileViewState extends State<_ProfileView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: SizedBox(height: topPad + 16)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'profile.title'.tr(),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: SizedBox(height: topPad + 16)),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Profile',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 18)),
-          SliverToBoxAdapter(
-            child: BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, state) {
-                final user = state is AuthLoaded ? state.token.user : null;
-                return _ProfileHeader(user: user);
-              },
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverToBoxAdapter(
+              child: BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) {
+                  final user = state is AuthLoaded ? state.token.user : null;
+                  return _ProfileHeader(user: user);
+                },
+              ),
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          const SliverToBoxAdapter(child: _ProfileOptionsSection()),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          const SliverToBoxAdapter(child: _ConnectionsSection()),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          const SliverToBoxAdapter(child: _ProvidersEntry()),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          const SliverToBoxAdapter(child: _AppInfoSection()),
-          SliverToBoxAdapter(child: SizedBox(height: bottomPad + 96)),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            const SliverToBoxAdapter(child: _ProvidersSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            const SliverToBoxAdapter(child: _AboutSection()),
+            SliverToBoxAdapter(child: SizedBox(height: bottomPad + 96)),
+          ],
+        ),
       ),
     );
   }
 }
 
+// ─── Profile Header ───────────────────────────────────────────────────────────
+
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({required this.user});
-
   final UserEntity? user;
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = user;
-
-    return _SectionContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: currentUser == null
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: user == null
             ? _GuestContent(onLogin: () => context.push('/login'))
-            : _UserContent(user: currentUser),
+            : _UserContent(user: user!),
       ),
     );
   }
@@ -115,149 +119,159 @@ class _ProfileHeader extends StatelessWidget {
 
 class _GuestContent extends StatelessWidget {
   const _GuestContent({required this.onLogin});
-
   final VoidCallback onLogin;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+    return Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Icon(Icons.person_outline_rounded,
+                    color: AppColors.textHint, size: 28),
               ),
-              child: const Icon(
-                Icons.person_outline_rounded,
-                color: AppColors.textHint,
-                size: 30,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'profile.guest_title'.tr(),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sign in to your account',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'profile.guest_subtitle'.tr(),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      height: 1.35,
+                    SizedBox(height: 4),
+                    Text(
+                      'Sign in to save your favorites and watch history.',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: onLogin,
-            icon: const Icon(Icons.login_rounded, size: 19),
-            label: Text('auth.sign_in'.tr()),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: onLogin,
+              icon: const Icon(Icons.login_rounded, size: 18),
+              label: const Text('Sign In'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _UserContent extends StatelessWidget {
   const _UserContent({required this.user});
-
   final UserEntity user;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _Avatar(user: user),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                user.displayIdentifier,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          _Avatar(user: user),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.displayIdentifier,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 5),
-              Text(
-                user.email,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
+                const SizedBox(height: 4),
+                Text(
+                  user.email,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        IconButton(
-          onPressed: () => _confirmLogout(context),
-          icon: const Icon(Icons.logout_rounded),
-          color: AppColors.textSecondary,
-          tooltip: 'general.logout'.tr(),
-          style: IconButton.styleFrom(
-            backgroundColor: AppColors.surfaceVariant,
-            fixedSize: const Size(42, 42),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              ],
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          _LogoutButton(),
+        ],
+      ),
+    );
+  }
+}
+
+class _LogoutButton extends StatelessWidget {
+  const _LogoutButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => _confirmLogout(context),
+      icon: const Icon(Icons.logout_rounded, size: 20),
+      color: AppColors.textSecondary,
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.surfaceVariant,
+        fixedSize: const Size(40, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
   void _confirmLogout(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('general.logout'.tr()),
-        content: Text('profile.logout_confirm'.tr()),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign Out',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        content: const Text('Are you sure you want to sign out?',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text('general.cancel'.tr()),
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop();
+              Navigator.of(ctx).pop();
               context.read<AuthBloc>().add(const AuthLogoutRequested());
             },
-            child: Text(
-              'general.logout'.tr(),
-              style: const TextStyle(color: AppColors.primary),
-            ),
+            child: const Text('Sign Out',
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -265,71 +279,73 @@ class _UserContent extends StatelessWidget {
   }
 }
 
-class _ProfileOptionsSection extends StatelessWidget {
-  const _ProfileOptionsSection();
+// ─── Providers Section ────────────────────────────────────────────────────────
+
+class _ProvidersSection extends StatelessWidget {
+  const _ProvidersSection();
 
   @override
   Widget build(BuildContext context) {
-    return _SectionContainer(child: Column(children: [const _LanguageTile()]));
-  }
-}
-
-class _LanguageTile extends StatelessWidget {
-  const _LanguageTile();
-
-  static const _languages = [
-    (code: 'uz', label: "O'zbek"),
-    (code: 'ru', label: 'Русский'),
-    (code: 'en', label: 'English'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final currentCode = context.locale.languageCode;
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _TileIcon(icon: Icons.language_rounded),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'profile.language'.tr(),
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _languages.any((lang) => lang.code == currentCode)
-                  ? currentCode
-                  : 'en',
-              dropdownColor: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(8),
-              iconEnabledColor: AppColors.textSecondary,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              items: _languages
-                  .map(
-                    (lang) => DropdownMenuItem<String>(
-                      value: lang.code,
-                      child: Text(lang.label),
+          const _SectionLabel('PROVIDERS'),
+          const SizedBox(height: 8),
+          BlocBuilder<ProviderBloc, ProviderState>(
+            builder: (context, state) {
+              final currentName = state is ProviderLoaded
+                  ? state.currentProvider?.name ?? state.currentProviderId
+                  : '—';
+              final currentProvider =
+                  state is ProviderLoaded ? state.currentProvider : null;
+
+              final count =
+                  state is ProviderLoaded ? state.providers.length : 1;
+
+              return _SectionCard(
+                children: [
+                  _Tile(
+                    icon: Icons.movie_filter_outlined,
+                    title: 'Provider',
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (currentProvider != null &&
+                            currentProvider.image.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(
+                                currentProvider.image,
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, e, s) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            ),
+                          ),
+                        Text(
+                          currentName,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 14),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AppColors.textHint, size: 20),
+                      ],
                     ),
-                  )
-                  .toList(),
-              onChanged: (code) async {
-                if (code == null || code == currentCode) return;
-                await context.setLocale(Locale(code));
-                await getIt<HiveService>().saveLanguage(code);
-              },
-            ),
+                    onTap: () {
+                      final bloc = context.read<ProviderBloc>();
+                      _ProvidersSheet.show(context, bloc, count);
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -337,249 +353,221 @@ class _LanguageTile extends StatelessWidget {
   }
 }
 
-class _ConnectionsSection extends StatelessWidget {
-  const _ConnectionsSection();
+// ─── Providers Bottom Sheet ───────────────────────────────────────────────────
+
+class _ProvidersSheet extends StatelessWidget {
+  const _ProvidersSheet({required this.initialSize, required this.maxSize});
+
+  final double initialSize;
+  final double maxSize;
+
+  static void show(BuildContext context, ProviderBloc bloc, int count) {
+    final screenH = MediaQuery.sizeOf(context).height;
+    // ~100px per item + 170px fixed overhead (handle + header + padding)
+    final contentH = count * 100.0 + 170.0;
+    final initial = (contentH / screenH).clamp(0.3, 0.92);
+    final max = count >= 5 ? 1.0 : initial;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => BlocProvider.value(
+        value: bloc,
+        child: _ProvidersSheet(initialSize: initial, maxSize: max),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return _SectionContainer(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
-        child: Row(
-          children: [
-            _TileIcon(icon: Icons.link_rounded),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                'profile.connections'.tr(),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+
+    return DraggableScrollableSheet(
+      initialChildSize: initialSize,
+      minChildSize: initialSize.clamp(0.3, 0.92),
+      maxChildSize: maxSize,
+      expand: false,
+      builder: (ctx, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: BlocBuilder<ProviderBloc, ProviderState>(
+          builder: (context, state) {
+            return Column(
+              children: [
+                _SheetHandle(),
+                _SheetHeader(
+                  title: 'Choose Provider',
+                  subtitle: state is ProviderLoaded
+                      ? '${state.providers.length} available'
+                      : null,
                 ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'profile.coming_soon'.tr(),
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                Expanded(
+                  child: switch (state) {
+                    ProviderLoaded() => _ProvidersList(
+                        state: state,
+                        scrollController: scrollController,
+                        bottomPad: bottomPad,
+                      ),
+                    ProviderError() => _ProvidersError(
+                        onRetry: () => context
+                            .read<ProviderBloc>()
+                            .add(const ProviderLoad()),
+                      ),
+                    _ => const _ProvidersLoading(),
+                  },
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _ProvidersEntry extends StatelessWidget {
-  const _ProvidersEntry();
+class _ProvidersList extends StatelessWidget {
+  const _ProvidersList({
+    required this.state,
+    required this.scrollController,
+    required this.bottomPad,
+  });
+
+  final ProviderLoaded state;
+  final ScrollController scrollController;
+  final double bottomPad;
 
   @override
   Widget build(BuildContext context) {
-    return _SectionContainer(
-      label: 'profile.providers'.tr().toUpperCase(),
-      child: BlocBuilder<ProviderBloc, ProviderState>(
-        builder: (context, state) {
-          final currentName = state is ProviderLoaded
-              ? state.currentProvider?.name ?? state.currentProviderId
-              : AppConstants.defaultProviderId;
+    return ListView.separated(
+      controller: scrollController,
+      padding: EdgeInsets.only(bottom: bottomPad + 16, top: 4),
+      itemCount: state.providers.length,
+      separatorBuilder: (context, i) => const Divider(
+        color: AppColors.divider,
+        height: 1,
+        indent: 74,
+      ),
+      itemBuilder: (context, i) {
+        final provider = state.providers[i];
+        final selected = provider.id == state.currentProviderId;
 
-          return InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => _showProviders(context),
+        return Material(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.06)
+              : Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              context.read<ProviderBloc>().add(ProviderSelect(provider.id));
+              Navigator.of(context).pop();
+            },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               child: Row(
                 children: [
-                  const _TileIcon(icon: Icons.movie_filter_outlined),
+                  _ProviderLogo(provider: provider, size: 46),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'profile.providers'.tr(),
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
+                          provider.name,
+                          style: TextStyle(
+                            color: selected
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
                             fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          currentName,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
+                        if (provider.description.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            provider.description,
+                            style: const TextStyle(
+                              color: AppColors.textHint,
+                              fontSize: 12,
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        ],
+                        if (provider.url.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.link_rounded,
+                                  size: 12, color: AppColors.textHint),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  provider.url,
+                                  style: const TextStyle(
+                                    color: AppColors.textHint,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (provider.domains.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 5,
+                            runSpacing: 4,
+                            children: provider.domains
+                                .take(3)
+                                .map(
+                                  (d) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      d,
+                                      style: const TextStyle(
+                                        color: AppColors.textHint,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const Icon(
-                    Icons.keyboard_arrow_up_rounded,
-                    color: AppColors.textHint,
-                  ),
+                  const SizedBox(width: 10),
+                  if (selected)
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_rounded,
+                          color: Colors.white, size: 13),
+                    )
+                  else
+                    const SizedBox(width: 22),
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showProviders(BuildContext context) {
-    final providerBloc = context.read<ProviderBloc>();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => BlocProvider.value(
-        value: providerBloc,
-        child: const _ProvidersSheet(),
-      ),
-    );
-  }
-}
-
-class _ProvidersSheet extends StatelessWidget {
-  const _ProvidersSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.paddingOf(context).bottom;
-
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.72,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 42,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'profile.providers'.tr(),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-          ),
-          Flexible(
-            child: BlocBuilder<ProviderBloc, ProviderState>(
-              builder: (context, state) {
-                return switch (state) {
-                  ProviderLoaded() => _ProvidersList(state: state),
-                  ProviderError() => _ProvidersError(
-                    onRetry: () =>
-                        context.read<ProviderBloc>().add(const ProviderLoad()),
-                  ),
-                  _ => const _ProvidersLoading(),
-                };
-              },
-            ),
-          ),
-          SizedBox(height: bottomPad + 12),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProvidersList extends StatelessWidget {
-  const _ProvidersList({required this.state});
-
-  final ProviderLoaded state;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      itemCount: state.providers.length,
-      separatorBuilder: (context, index) =>
-          const Divider(color: AppColors.divider, height: 1, indent: 66),
-      itemBuilder: (context, index) {
-        final provider = state.providers[index];
-        final selected = provider.id == state.currentProviderId;
-
-        return Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          clipBehavior: Clip.antiAlias,
-          child: ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            onTap: () {
-              context.read<ProviderBloc>().add(ProviderSelect(provider.id));
-              Navigator.of(context).pop();
-            },
-            leading: _ProviderLogo(provider: provider),
-            title: Text(
-              provider.name,
-              style: TextStyle(
-                color: selected
-                    ? AppColors.textPrimary
-                    : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-            subtitle: provider.url.isEmpty
-                ? null
-                : Text(
-                    provider.url,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textHint,
-                      fontSize: 12,
-                    ),
-                  ),
-            trailing: selected
-                ? const Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.success,
-                  )
-                : null,
           ),
         );
       },
@@ -592,102 +580,61 @@ class _ProvidersLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 160,
-      child: Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
+    return const Center(
+      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textHint),
     );
   }
 }
 
 class _ProvidersError extends StatelessWidget {
   const _ProvidersError({required this.onRetry});
-
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.textHint),
+          const Icon(Icons.error_outline_rounded,
+              color: AppColors.textHint, size: 36),
           const SizedBox(height: 10),
-          Text(
-            'profile.providers_error'.tr(),
-            style: const TextStyle(color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
+          const Text('Failed to load providers.',
+              style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 14),
-          OutlinedButton(onPressed: onRetry, child: Text('general.retry'.tr())),
+          OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );
   }
 }
 
-class _AppInfoSection extends StatelessWidget {
-  const _AppInfoSection();
+// ─── About Section ────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return _SectionContainer(
-      label: 'profile.about'.tr().toUpperCase(),
-      child: const _InfoTile(
-        icon: Icons.info_outline_rounded,
-        title: 'Soplay',
-        value: '1.0.0',
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
+class _AboutSection extends StatelessWidget {
+  const _AboutSection();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: _tileIconDecoration,
-            child: Icon(icon, color: AppColors.textSecondary, size: 17),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
+          const _SectionLabel('ABOUT'),
+          const SizedBox(height: 8),
+          _SectionCard(
+            children: [
+              _Tile(
+                icon: Icons.info_outline_rounded,
+                title: 'Soplay',
+                trailing: const Text(
+                  '1.0.0',
+                  style: TextStyle(color: AppColors.textHint, fontSize: 13),
+                ),
+                onTap: null,
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-            ),
+            ],
           ),
         ],
       ),
@@ -695,64 +642,165 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
-class _TileIcon extends StatelessWidget {
-  const _TileIcon({required this.icon});
+// ─── Shared Sheet Widgets ─────────────────────────────────────────────────────
 
-  final IconData icon;
+class _SheetHandle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.border,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.title, this.subtitle});
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(
+                        color: AppColors.textHint, fontSize: 13),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared Section Widgets ───────────────────────────────────────────────────
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.children});
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 34,
-      height: 34,
-      decoration: _tileIconDecoration,
-      child: Icon(icon, color: AppColors.textSecondary, size: 18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: children),
     );
   }
 }
 
-class _SectionContainer extends StatelessWidget {
-  const _SectionContainer({required this.child, this.label});
-
-  final Widget child;
-  final String? label;
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (label != null) ...[
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 8),
-              child: Text(
-                label!,
-                style: const TextStyle(
-                  color: AppColors.textHint,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.7,
-                ),
-              ),
-            ),
-          ],
-          Material(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            clipBehavior: Clip.antiAlias,
-            child: child,
-          ),
-        ],
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.textHint,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
 }
 
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.icon,
+    required this.title,
+    required this.trailing,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: AppColors.textSecondary, size: 18),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.user});
-
   final UserEntity user;
 
   @override
@@ -761,19 +809,18 @@ class _Avatar extends StatelessWidget {
     final initials = _initials(user.displayIdentifier);
 
     return Container(
-      width: 66,
-      height: 66,
+      width: 62,
+      height: 62,
       decoration: BoxDecoration(
         color: AppColors.primary,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.antiAlias,
       child: photoUrl != null && photoUrl.isNotEmpty
           ? Image.network(
               photoUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  _Initials(initials: initials),
+              errorBuilder: (_, e, s) => _Initials(initials: initials),
             )
           : _Initials(initials: initials),
     );
@@ -790,7 +837,6 @@ class _Avatar extends StatelessWidget {
 
 class _Initials extends StatelessWidget {
   const _Initials({required this.initials});
-
   final String initials;
 
   @override
@@ -800,7 +846,7 @@ class _Initials extends StatelessWidget {
         initials,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 24,
+          fontSize: 22,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -808,46 +854,49 @@ class _Initials extends StatelessWidget {
   }
 }
 
-class _ProviderLogo extends StatelessWidget {
-  const _ProviderLogo({required this.provider});
+// ─── Provider Logo ────────────────────────────────────────────────────────────
 
+class _ProviderLogo extends StatelessWidget {
+  const _ProviderLogo({required this.provider, this.size = 42});
   final ProviderEntity provider;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(10),
       child: provider.image.isEmpty
-          ? _ProviderFallback(name: provider.name)
+          ? _ProviderFallback(name: provider.name, size: size)
           : Image.network(
               provider.image,
-              width: 42,
-              height: 42,
+              width: size,
+              height: size,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  _ProviderFallback(name: provider.name),
+              errorBuilder: (_, e, s) =>
+                  _ProviderFallback(name: provider.name, size: size),
             ),
     );
   }
 }
 
 class _ProviderFallback extends StatelessWidget {
-  const _ProviderFallback({required this.name});
-
+  const _ProviderFallback({required this.name, required this.size});
   final String name;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 42,
+      width: size,
+      height: size,
       color: AppColors.surfaceVariant,
       alignment: Alignment.center,
       child: Text(
         name.isEmpty ? '?' : name[0].toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSecondary,
           fontWeight: FontWeight.w800,
+          fontSize: size * 0.38,
         ),
       ),
     );

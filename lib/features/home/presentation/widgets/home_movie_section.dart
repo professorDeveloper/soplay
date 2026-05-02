@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/home/presentation/widgets/home_shared_widgets.dart';
@@ -105,7 +106,11 @@ class _MovieCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final quality = primaryQuality(movie);
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        if (movie.url.isNotEmpty) {
+          context.push('/detail', extra: DetailArgs(contentUrl: movie.url, preview: movie));
+        }
+      },
       child: SizedBox(
         width: 118,
         child: Padding(

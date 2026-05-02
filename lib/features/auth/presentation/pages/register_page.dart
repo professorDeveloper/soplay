@@ -158,7 +158,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       _AuthSwitchPrompt(
                         text: 'auth.already_have_account'.tr(),
                         action: 'auth.sign_in'.tr(),
-                        onTap: () => context.go('/login'),
+                        onTap: () => context.pushReplacement('/login'),
                       ),
                     ],
                   ),

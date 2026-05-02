@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/home/presentation/bloc/view_all/view_all_state.dart';
 import 'package:soplay/features/home/presentation/widgets/home_shared_widgets.dart';
@@ -143,7 +144,11 @@ class ViewAllMovieCard extends StatelessWidget {
     final quality = primaryQuality(movie);
 
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        if (movie.url.isNotEmpty) {
+          context.push('/detail', extra: DetailArgs(contentUrl: movie.url, preview: movie));
+        }
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
