@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/error/result.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/shorts/domain/entities/short_entity.dart';
+import 'package:soplay/features/shorts/domain/usecases/get_short_usecase.dart';
 import 'package:soplay/features/shorts/presentation/bloc/shorts_bloc.dart';
 import 'package:soplay/features/shorts/presentation/bloc/shorts_event.dart';
 import 'package:soplay/features/shorts/presentation/bloc/shorts_state.dart';
@@ -104,9 +106,27 @@ class _ShortsViewState extends State<_ShortsView>
     }
     if (!mounted) return;
 
-    final contentUrl = short.contentUrl.trim();
+    setState(() => _detailOpen = true);
+
+    var contentUrl = short.contentUrl.trim();
+
+    // Feed may not return contentUrl — fetch full short by ID
+    if (contentUrl.isEmpty && short.id.isNotEmpty) {
+      final result = await getIt<GetShortUseCase>()(short.id);
+      if (!mounted) {
+        return;
+      }
+      if (result case Success<ShortEntity>(:final value)) {
+        contentUrl = value.contentUrl.trim();
+        final p = value.provider.trim();
+        if (p.isNotEmpty) {
+          await getIt<HiveService>().saveCurrentProvider(p);
+        }
+      }
+      if (!mounted) return;
+    }
+
     if (contentUrl.isNotEmpty) {
-      setState(() => _detailOpen = true);
       await context.push(
         '/detail',
         extra: DetailArgs(contentUrl: contentUrl),
@@ -115,9 +135,9 @@ class _ShortsViewState extends State<_ShortsView>
       return;
     }
 
+    // Fallback: browse by genre tag
     final slug = short.tags.isNotEmpty ? short.tags.first : '';
     if (slug.isNotEmpty) {
-      setState(() => _detailOpen = true);
       await context.push(
         '/view-all',
         extra: ViewAllEntity(slug: slug, type: 'movies'),
@@ -126,6 +146,7 @@ class _ShortsViewState extends State<_ShortsView>
       return;
     }
 
+    if (mounted) setState(() => _detailOpen = false);
     _showNotice('Content not available');
   }
 

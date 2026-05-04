@@ -7,7 +7,6 @@ class ProviderInterceptor extends Interceptor {
   ProviderInterceptor({required this.hiveService});
 
   static const Set<String> _excludedContentsPaths = {
-    '/contents/episodes',
     '/contents/media',
     '/contents/providers',
   };
