@@ -35,10 +35,7 @@ class DetailPage extends StatelessWidget {
           create: (_) => getIt<DetailBloc>()..add(DetailLoad(args.contentUrl)),
         ),
         BlocProvider(create: (_) => getIt<EpisodesBloc>()),
-        BlocProvider(
-          create: (_) =>
-              getIt<FavoriteBloc>()..add(FavoriteLoad(args.contentUrl)),
-        ),
+        BlocProvider(create: (_) => getIt<FavoriteBloc>()),
       ],
       child: _DetailScaffold(contentUrl: args.contentUrl),
     );
@@ -55,38 +52,56 @@ class _DetailScaffold extends StatelessWidget {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: BlocBuilder<DetailBloc, DetailState>(
-          builder: (context, state) {
-            return switch (state) {
-              DetailInitial() || DetailLoading() => Stack(
-                children: [
-                  const DetailSkeleton(),
-                  _BackOnlyBar(onBack: () => _goBack(context)),
-                ],
-              ),
-              DetailLoaded(:final detail) =>
-                BlocBuilder<FavoriteBloc, FavoriteState>(
-                  builder: (context, favoriteState) {
-                    if (favoriteState is FavoriteInitial) {
-                      return Stack(
-                        children: [
-                          const DetailSkeleton(),
-                          _BackOnlyBar(onBack: () => _goBack(context)),
-                        ],
-                      );
-                    }
-                    return _DetailView(detail: detail);
-                  },
-                ),
-              DetailError(:final message) => _ErrorView(
-                message: message,
-                onRetry: () =>
-                    context.read<DetailBloc>().add(DetailLoad(contentUrl)),
-                onBack: () => _goBack(context),
-              ),
-              _ => const SizedBox.shrink(),
-            };
+        body: BlocListener<DetailBloc, DetailState>(
+          listenWhen: (prev, curr) {
+            if (curr is! DetailLoaded) return false;
+            if (prev is! DetailLoaded) return true;
+            return prev.detail.contentUrl != curr.detail.contentUrl ||
+                prev.detail.isFavorited != curr.detail.isFavorited;
           },
+          listener: (context, state) {
+            if (state is DetailLoaded) {
+              context.read<FavoriteBloc>().add(
+                FavoriteLoad(
+                  contentUrl: state.detail.contentUrl,
+                  isFavorited: state.detail.isFavorited,
+                ),
+              );
+            }
+          },
+          child: BlocBuilder<DetailBloc, DetailState>(
+            builder: (context, state) {
+              return switch (state) {
+                DetailInitial() || DetailLoading() => Stack(
+                  children: [
+                    const DetailSkeleton(),
+                    _BackOnlyBar(onBack: () => _goBack(context)),
+                  ],
+                ),
+                DetailLoaded(:final detail) =>
+                  BlocBuilder<FavoriteBloc, FavoriteState>(
+                    builder: (context, favoriteState) {
+                      if (favoriteState is FavoriteInitial) {
+                        return Stack(
+                          children: [
+                            const DetailSkeleton(),
+                            _BackOnlyBar(onBack: () => _goBack(context)),
+                          ],
+                        );
+                      }
+                      return _DetailView(detail: detail);
+                    },
+                  ),
+                DetailError(:final message) => _ErrorView(
+                  message: message,
+                  onRetry: () =>
+                      context.read<DetailBloc>().add(DetailLoad(contentUrl)),
+                  onBack: () => _goBack(context),
+                ),
+                _ => const SizedBox.shrink(),
+              };
+            },
+          ),
         ),
       ),
     );
@@ -315,6 +330,7 @@ class _DetailViewState extends State<_DetailView>
         provider: playback.provider,
         headers: playback.headers,
         movieUrl: movieUrl,
+        type: playback.type,
         videoSources: playback.videoSources,
       ),
     );
@@ -347,7 +363,9 @@ class _DetailViewState extends State<_DetailView>
         BlocListener<FavoriteBloc, FavoriteState>(
           listenWhen: (prev, curr) {
             if (prev is FavoriteReady && curr is FavoriteReady) {
-              return prev.isInList != curr.isInList && !curr.isLoading;
+              return prev.isLoading &&
+                  !curr.isLoading &&
+                  prev.isInList == curr.isInList;
             }
             return false;
           },
@@ -463,7 +481,7 @@ class _DetailViewState extends State<_DetailView>
             child: BlocBuilder<FavoriteBloc, FavoriteState>(
               buildWhen: (a, b) {
                 if (a is FavoriteReady && b is FavoriteReady) {
-                  return a.isInList != b.isInList;
+                  return a.isInList != b.isInList || a.isLoading != b.isLoading;
                 }
                 return a.runtimeType != b.runtimeType;
               },

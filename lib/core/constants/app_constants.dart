@@ -2,7 +2,7 @@ class AppConstants {
   AppConstants._();
 
   static const String baseUrl =
-      'https://any-eddie-mesh-maritime.trycloudflare.com/api';
+      'https://authorities-allied-nil-gage.trycloudflare.com/api';
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
   static const String productsBox = 'products_box';

@@ -3,6 +3,7 @@ import 'package:soplay/core/error/result.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/features/shorts/domain/entities/short_entity.dart';
 import 'package:soplay/features/shorts/domain/entities/short_like_result.dart';
+import 'package:soplay/features/shorts/domain/entities/shorts_feed_result.dart';
 import 'package:soplay/features/shorts/domain/usecases/get_shorts_usecase.dart';
 import 'package:soplay/features/shorts/domain/usecases/increase_short_view_usecase.dart';
 import 'package:soplay/features/shorts/domain/usecases/toggle_short_like_usecase.dart';
@@ -23,6 +24,7 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
        super(const ShortsInitial()) {
     on<ShortsLoad>(_onLoad);
     on<ShortsRefresh>(_onRefresh);
+    on<ShortsLoadMore>(_onLoadMore);
     on<ShortsPageChanged>(_onPageChanged);
     on<ShortsViewed>(_onViewed);
     on<ShortsLikeToggled>(_onLikeToggled);
@@ -37,7 +39,7 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
 
   Future<void> _onLoad(ShortsLoad event, Emitter<ShortsState> emit) async {
     emit(const ShortsLoading());
-    await _load(emit);
+    await _loadFeed(emit);
   }
 
   Future<void> _onRefresh(
@@ -50,29 +52,71 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
     } else {
       emit(const ShortsLoading());
     }
-    await _load(emit);
+    _viewedIds.clear();
+    await _loadFeed(emit);
   }
 
-  Future<void> _load(Emitter<ShortsState> emit) async {
+  Future<void> _onLoadMore(
+    ShortsLoadMore event,
+    Emitter<ShortsState> emit,
+  ) async {
+    final current = state;
+    if (current is! ShortsLoaded) return;
+    if (!current.hasMore || current.loadingMore) return;
+
+    emit(current.copyWith(loadingMore: true));
+
+    final result = await _getShorts(cursor: current.nextCursor);
+    switch (result) {
+      case Success<ShortsFeedResult>(:final value):
+        emit(current.copyWith(
+          items: [...current.items, ...value.items],
+          nextCursor: value.nextCursor,
+          hasMore: value.hasMore,
+          loadingMore: false,
+        ));
+      case Failure<ShortsFeedResult>():
+        emit(current.copyWith(loadingMore: false));
+    }
+  }
+
+  Future<void> _loadFeed(Emitter<ShortsState> emit) async {
     final result = await _getShorts();
     switch (result) {
-      case Success<List<ShortEntity>>(:final value):
-        emit(ShortsLoaded(items: value));
-        if (value.isNotEmpty) add(ShortsViewed(value.first.id));
-      case Failure<List<ShortEntity>>(:final error):
+      case Success<ShortsFeedResult>(:final value):
+        emit(ShortsLoaded(
+          items: value.items,
+          nextCursor: value.nextCursor,
+          hasMore: value.hasMore,
+        ));
+        if (value.items.isNotEmpty) add(ShortsViewed(value.items.first.id));
+      case Failure<ShortsFeedResult>(:final error):
         emit(ShortsError(_message(error)));
     }
   }
 
-  void _onPageChanged(ShortsPageChanged event, Emitter<ShortsState> emit) {
+  void _onPageChanged(
+    ShortsPageChanged event,
+    Emitter<ShortsState> emit,
+  ) {
     final current = state;
     if (current is! ShortsLoaded) return;
     if (event.index < 0 || event.index >= current.items.length) return;
+
     emit(current.copyWith(activeIndex: event.index));
     add(ShortsViewed(current.items[event.index].id));
+
+    if (current.hasMore &&
+        !current.loadingMore &&
+        event.index >= current.items.length - 3) {
+      add(const ShortsLoadMore());
+    }
   }
 
-  Future<void> _onViewed(ShortsViewed event, Emitter<ShortsState> emit) async {
+  Future<void> _onViewed(
+    ShortsViewed event,
+    Emitter<ShortsState> emit,
+  ) async {
     if (event.id.isEmpty || !_viewedIds.add(event.id)) return;
     await _increaseView(event.id);
   }
@@ -100,8 +144,12 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
           : item.likeCount + 1,
     );
     final loading = {...current.loadingLikeIds, event.id};
-    final optimisticItems = _replace(current.items, index, optimistic);
-    emit(current.copyWith(items: optimisticItems, loadingLikeIds: loading));
+    emit(
+      current.copyWith(
+        items: _replace(current.items, index, optimistic),
+        loadingLikeIds: loading,
+      ),
+    );
 
     final result = await _toggleLike(event.id);
     final after = state;
@@ -119,26 +167,22 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
           emit(after.copyWith(loadingLikeIds: idle));
           return;
         }
-        emit(
-          after.copyWith(
-            items: _replace(
-              after.items,
-              i,
-              after.items[i].copyWith(
-                likedByMe: value.liked,
-                likeCount: value.likeCount,
-              ),
+        emit(after.copyWith(
+          items: _replace(
+            after.items,
+            i,
+            after.items[i].copyWith(
+              likedByMe: value.liked,
+              likeCount: value.likeCount,
             ),
-            loadingLikeIds: idle,
           ),
-        );
+          loadingLikeIds: idle,
+        ));
       case Failure<ShortLikeResult?>(:final error):
-        emit(
-          _notice(
-            after.copyWith(items: current.items, loadingLikeIds: idle),
-            _message(error),
-          ),
-        );
+        emit(_notice(
+          after.copyWith(items: current.items, loadingLikeIds: idle),
+          _message(error),
+        ));
     }
   }
 
@@ -157,7 +201,6 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
     return state.copyWith(notice: message, noticeId: _noticeId);
   }
 
-  String _message(Object error) {
-    return error.toString().replaceFirst('Exception: ', '');
-  }
+  String _message(Object error) =>
+      error.toString().replaceFirst('Exception: ', '');
 }

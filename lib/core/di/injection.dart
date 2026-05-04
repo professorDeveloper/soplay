@@ -199,7 +199,6 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(() => DetailBloc(useCase: getIt<GetDetailUseCase>()));
   getIt.registerFactory(
     () => FavoriteBloc(
-      getFavorites: getIt<GetFavoritesUseCase>(),
       addFavorite: getIt<AddFavoriteUseCase>(),
       removeFavorite: getIt<RemoveFavoriteUseCase>(),
       hiveService: getIt<HiveService>(),

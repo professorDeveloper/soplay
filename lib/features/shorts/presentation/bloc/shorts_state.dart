@@ -17,13 +17,6 @@ class ShortsLoading extends ShortsState {
 }
 
 class ShortsLoaded extends ShortsState {
-  final List<ShortEntity> items;
-  final int activeIndex;
-  final Set<String> loadingLikeIds;
-  final String? notice;
-  final int noticeId;
-  final bool refreshing;
-
   const ShortsLoaded({
     required this.items,
     this.activeIndex = 0,
@@ -31,7 +24,20 @@ class ShortsLoaded extends ShortsState {
     this.notice,
     this.noticeId = 0,
     this.refreshing = false,
+    this.loadingMore = false,
+    this.hasMore = false,
+    this.nextCursor,
   });
+
+  final List<ShortEntity> items;
+  final int activeIndex;
+  final Set<String> loadingLikeIds;
+  final String? notice;
+  final int noticeId;
+  final bool refreshing;
+  final bool loadingMore;
+  final bool hasMore;
+  final String? nextCursor;
 
   ShortsLoaded copyWith({
     List<ShortEntity>? items,
@@ -40,6 +46,9 @@ class ShortsLoaded extends ShortsState {
     String? notice,
     int? noticeId,
     bool? refreshing,
+    bool? loadingMore,
+    bool? hasMore,
+    String? nextCursor,
   }) {
     return ShortsLoaded(
       items: items ?? this.items,
@@ -48,24 +57,30 @@ class ShortsLoaded extends ShortsState {
       notice: notice ?? this.notice,
       noticeId: noticeId ?? this.noticeId,
       refreshing: refreshing ?? this.refreshing,
+      loadingMore: loadingMore ?? this.loadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      nextCursor: nextCursor ?? this.nextCursor,
     );
   }
 
   @override
   List<Object?> get props => [
-    items,
-    activeIndex,
-    loadingLikeIds,
-    notice,
-    noticeId,
-    refreshing,
-  ];
+        items,
+        activeIndex,
+        loadingLikeIds,
+        notice,
+        noticeId,
+        refreshing,
+        loadingMore,
+        hasMore,
+        nextCursor,
+      ];
 }
 
 class ShortsError extends ShortsState {
-  final String message;
-
   const ShortsError(this.message);
+
+  final String message;
 
   @override
   List<Object?> get props => [message];

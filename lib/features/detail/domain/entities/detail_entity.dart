@@ -18,6 +18,7 @@ class DetailEntity {
   final int likes;
   final int dislikes;
   final bool isSerial;
+  final bool? isFavorited;
   final List<ScreenshotEntity> screenshots;
   final List<RelatedEntity> related;
 
@@ -37,6 +38,7 @@ class DetailEntity {
     required this.likes,
     required this.dislikes,
     required this.isSerial,
+    required this.isFavorited,
     required this.screenshots,
     required this.related,
   });

@@ -47,6 +47,7 @@ class _PlayerPageState extends State<PlayerPage>
   late int _episodeIndex;
   String? _currentQuality;
   String? _videoUrl;
+  String? _mediaType;
   Map<String, String> _headers = const {};
   List<VideoSourceEntity> _videoSources = const [];
   int _currentSourceIndex = -1;
@@ -232,6 +233,8 @@ class _PlayerPageState extends State<PlayerPage>
     }
   }
 
+  bool _isHlsType(String? type) => type?.trim().toLowerCase() == 'hls';
+
   Future<void> _enterFullscreen() async {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     await SystemChrome.setPreferredOrientations([
@@ -267,6 +270,7 @@ class _PlayerPageState extends State<PlayerPage>
       await _initializeWith(
         url: source?.videoUrl ?? widget.args.movieUrl ?? '',
         headers: widget.args.headers,
+        type: widget.args.type,
       );
     }
   }
@@ -338,6 +342,7 @@ class _PlayerPageState extends State<PlayerPage>
         await _initializeWith(
           url: url,
           headers: value.headers,
+          type: value.type,
           resumeAt: resumeAt,
         );
       case Failure(:final error):
@@ -400,6 +405,7 @@ class _PlayerPageState extends State<PlayerPage>
     await _initializeWith(
       url: source.videoUrl,
       headers: _headers.isNotEmpty ? _headers : widget.args.headers,
+      type: _mediaType,
       resumeAt: keepPosition,
     );
   }
@@ -407,6 +413,7 @@ class _PlayerPageState extends State<PlayerPage>
   Future<void> _initializeWith({
     required String url,
     required Map<String, String> headers,
+    required String? type,
     Duration resumeAt = Duration.zero,
   }) async {
     if (url.isEmpty) {
@@ -429,7 +436,9 @@ class _PlayerPageState extends State<PlayerPage>
     if (defaultReferer != null) mergedHeaders['Referer'] = defaultReferer;
     mergedHeaders.addAll(headers);
 
+    final isHls = _isHlsType(type);
     debugPrint('[PLAYER] loading url: $url');
+    debugPrint('[PLAYER] type: ${type ?? 'unknown'}');
     debugPrint('[PLAYER] provider: ${widget.args.provider}');
     debugPrint('[PLAYER] headers (${mergedHeaders.length}):');
     mergedHeaders.forEach((k, v) {
@@ -439,10 +448,12 @@ class _PlayerPageState extends State<PlayerPage>
     final controller = VideoPlayerController.networkUrl(
       uri,
       httpHeaders: mergedHeaders,
+      formatHint: isHls ? VideoFormat.hls : null,
       videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
     );
     _controller = controller;
     _videoUrl = url;
+    _mediaType = type;
     _headers = mergedHeaders;
 
     try {
@@ -619,6 +630,7 @@ class _PlayerPageState extends State<PlayerPage>
       await _initializeWith(
         url: next.videoUrl,
         headers: _headers.isNotEmpty ? _headers : widget.args.headers,
+        type: _mediaType,
       );
       _autoRetrying = false;
       return;
@@ -637,7 +649,11 @@ class _PlayerPageState extends State<PlayerPage>
     if (widget.args.isSerial) {
       await _loadEpisode(_episodeIndex);
     } else if (_videoUrl != null) {
-      await _initializeWith(url: _videoUrl!, headers: _headers);
+      await _initializeWith(
+        url: _videoUrl!,
+        headers: _headers,
+        type: _mediaType,
+      );
     } else {
       await _bootstrap();
     }
@@ -1163,7 +1179,11 @@ class _PlayerPageState extends State<PlayerPage>
         _errorMessage = null;
       });
       await _disposeController();
-      await _initializeWith(url: _videoUrl!, headers: _headers);
+      await _initializeWith(
+        url: _videoUrl!,
+        headers: _headers,
+        type: _mediaType,
+      );
     }
   }
 

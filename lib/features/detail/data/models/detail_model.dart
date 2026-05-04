@@ -20,6 +20,7 @@ class DetailModel extends DetailEntity {
     required super.likes,
     required super.dislikes,
     required super.isSerial,
+    required super.isFavorited,
     required super.screenshots,
     required super.related,
   });
@@ -58,9 +59,21 @@ class DetailModel extends DetailEntity {
       likes: (json['likes'] as num?)?.toInt() ?? 0,
       dislikes: (json['dislikes'] as num?)?.toInt() ?? 0,
       isSerial: json['isSerial'] as bool? ?? false,
+      isFavorited: _nullableBool(json['isFavorited']),
       screenshots: screenshotList,
       related: relatedList,
     );
+  }
+
+  static bool? _nullableBool(Object? value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+    return null;
   }
 
   static String? _nonEmpty(String? value) {

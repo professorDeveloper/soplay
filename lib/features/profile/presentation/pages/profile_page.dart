@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -36,7 +33,7 @@ class _ProfileViewState extends State<_ProfileView> {
   }
 
   Future<void> _onRefresh() async {
-    context.read<AuthBloc>().add(const AuthStarted());
+    context.read<AuthBloc>().add(const AuthProfileRefreshRequested());
     context.read<ProviderBloc>().add(const ProviderLoad());
     await Future.delayed(const Duration(milliseconds: 800));
   }
@@ -90,11 +87,8 @@ class _ProfileViewState extends State<_ProfileView> {
   }
 }
 
-// ─── Profile Header ───────────────────────────────────────────────────────────
-
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({required this.user});
-
   final UserEntity? user;
 
   @override
@@ -117,7 +111,6 @@ class _ProfileHeader extends StatelessWidget {
 
 class _GuestContent extends StatelessWidget {
   const _GuestContent({required this.onLogin});
-
   final VoidCallback onLogin;
 
   @override
@@ -188,7 +181,6 @@ class _GuestContent extends StatelessWidget {
 
 class _UserContent extends StatelessWidget {
   const _UserContent({required this.user});
-
   final UserEntity user;
 
   @override
@@ -296,8 +288,6 @@ class _LogoutButton extends StatelessWidget {
   }
 }
 
-// ─── Providers Section ────────────────────────────────────────────────────────
-
 class _ProvidersSection extends StatelessWidget {
   const _ProvidersSection();
 
@@ -377,8 +367,6 @@ class _ProvidersSection extends StatelessWidget {
   }
 }
 
-// ─── Providers Bottom Sheet ───────────────────────────────────────────────────
-
 class _ProvidersSheet extends StatelessWidget {
   const _ProvidersSheet({required this.initialSize, required this.maxSize});
 
@@ -387,7 +375,6 @@ class _ProvidersSheet extends StatelessWidget {
 
   static void show(BuildContext context, ProviderBloc bloc, int count) {
     final screenH = MediaQuery.sizeOf(context).height;
-    // Compact list: ~64px per row + 8px gap + 150px overhead (handle + header + padding)
     const rowH = 64.0;
     const gap = 8.0;
     final contentH = count * rowH + (count - 1) * gap + 150;
@@ -604,7 +591,6 @@ class _ProvidersLoading extends StatelessWidget {
 
 class _ProvidersError extends StatelessWidget {
   const _ProvidersError({required this.onRetry});
-
   final VoidCallback onRetry;
 
   @override
@@ -647,9 +633,9 @@ class _AboutSection extends StatelessWidget {
             children: [
               _Tile(
                 icon: Icons.info_outline_rounded,
-                title: "app_name".tr(),
-                trailing: Text(
-                  "1.0",
+                title: 'Soplay',
+                trailing: const Text(
+                  '1.0.0',
                   style: TextStyle(color: AppColors.textHint, fontSize: 13),
                 ),
                 onTap: null,
@@ -681,7 +667,6 @@ class _SheetHandle extends StatelessWidget {
 
 class _SheetHeader extends StatelessWidget {
   const _SheetHeader({required this.title, this.subtitle});
-
   final String title;
   final String? subtitle;
 
@@ -731,7 +716,6 @@ class _SheetHeader extends StatelessWidget {
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.children});
-
   final List<Widget> children;
 
   @override
@@ -749,7 +733,6 @@ class _SectionCard extends StatelessWidget {
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.label);
-
   final String label;
 
   @override
@@ -823,7 +806,6 @@ class _Tile extends StatelessWidget {
 
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.user});
-
   final UserEntity user;
 
   @override
@@ -860,7 +842,6 @@ class _Avatar extends StatelessWidget {
 
 class _Initials extends StatelessWidget {
   const _Initials({required this.initials});
-
   final String initials;
 
   @override
@@ -880,7 +861,6 @@ class _Initials extends StatelessWidget {
 
 class _ProviderLogo extends StatelessWidget {
   const _ProviderLogo({required this.provider, this.size = 42});
-
   final ProviderEntity provider;
   final double size;
 
@@ -904,7 +884,6 @@ class _ProviderLogo extends StatelessWidget {
 
 class _ProviderFallback extends StatelessWidget {
   const _ProviderFallback({required this.name, required this.size});
-
   final String name;
   final double size;
 

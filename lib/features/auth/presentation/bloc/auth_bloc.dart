@@ -115,10 +115,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (current is AuthOtpPending) {
       emit(current.copyWith(verifying: true, clearError: true));
     }
-    final result = await verifyOtpUseCase(
-      email: event.email,
-      code: event.code,
-    );
+    final result = await verifyOtpUseCase(email: event.email, code: event.code);
     switch (result) {
       case Success(:final value):
         emit(AuthLoaded(token: value));
@@ -183,7 +180,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthProfileRefreshRequested event,
     Emitter<AuthState> emit,
   ) async {
-    if (hiveService.getToken() == null) return;
+    final current = state;
+    final accessToken = hiveService.getToken();
+    if (accessToken == null || accessToken.isEmpty) {
+      if (current is AuthLoaded) emit(AuthInitial());
+      return;
+    }
 
     final result = await authRepository.getProfile();
     switch (result) {
@@ -198,7 +200,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           ),
         );
       case Failure():
-        if (state is! AuthLoaded) emit(AuthInitial());
+        final stillAuthenticated = hiveService.getToken()?.isNotEmpty == true;
+        if (!stillAuthenticated) {
+          emit(AuthInitial());
+          return;
+        }
+        if (current is AuthLoaded) return;
+        final cachedUser = hiveService.getUser();
+        if (cachedUser != null) {
+          emit(
+            AuthLoaded(
+              token: AuthToken(
+                accessToken: hiveService.getToken() ?? '',
+                refreshToken: hiveService.getRefreshToken() ?? '',
+                user: cachedUser,
+              ),
+            ),
+          );
+        }
     }
   }
 

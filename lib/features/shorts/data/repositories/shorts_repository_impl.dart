@@ -3,6 +3,7 @@ import 'package:soplay/core/error/result.dart';
 import 'package:soplay/features/shorts/data/datasources/shorts_remote_data_source.dart';
 import 'package:soplay/features/shorts/domain/entities/short_entity.dart';
 import 'package:soplay/features/shorts/domain/entities/short_like_result.dart';
+import 'package:soplay/features/shorts/domain/entities/shorts_feed_result.dart';
 import 'package:soplay/features/shorts/domain/repositories/shorts_repository.dart';
 
 class ShortsRepositoryImpl implements ShortsRepository {
@@ -11,9 +12,14 @@ class ShortsRepositoryImpl implements ShortsRepository {
   final ShortsRemoteDataSource dataSource;
 
   @override
-  Future<Result<List<ShortEntity>>> getShorts() async {
+  Future<Result<ShortsFeedResult>> getShortsFeed({
+    String? cursor,
+    int limit = 15,
+  }) async {
     try {
-      return Success(await dataSource.getShorts());
+      return Success(
+        await dataSource.getShortsFeed(cursor: cursor, limit: limit),
+      );
     } on DioException catch (e) {
       return Failure(Exception(_messageFrom(e)));
     } catch (e) {
@@ -59,11 +65,9 @@ class ShortsRepositoryImpl implements ShortsRepository {
   String _messageFrom(DioException e) {
     final data = e.response?.data;
     if (data is Map) {
-      final message = data['message'];
-      if (message is String && message.trim().isNotEmpty) return message;
-      if (message is List && message.isNotEmpty) {
-        return message.first.toString();
-      }
+      final msg = data['message'];
+      if (msg is String && msg.trim().isNotEmpty) return msg;
+      if (msg is List && msg.isNotEmpty) return msg.first.toString();
     }
     return e.message ?? 'Something went wrong';
   }

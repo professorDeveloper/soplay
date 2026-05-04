@@ -5,6 +5,7 @@ class PlayerArgs {
   final String title;
   final String provider;
   final String? movieUrl;
+  final String? type;
   final List<VideoSourceEntity> videoSources;
   final Map<String, String> headers;
   final List<EpisodeEntity> episodes;
@@ -16,6 +17,7 @@ class PlayerArgs {
     required this.provider,
     required this.headers,
     this.movieUrl,
+    this.type,
     this.videoSources = const [],
     this.episodes = const [],
     this.initialEpisodeIndex = 0,

@@ -17,7 +17,11 @@ class ProviderBloc extends Bloc<ProviderEvent, ProviderState> {
   }
 
   Future<void> _onLoad(ProviderLoad event, Emitter<ProviderState> emit) async {
-    emit(ProviderLoading());
+    final previous = state;
+    if (previous is! ProviderLoaded) {
+      emit(ProviderLoading());
+    }
+
     final result = await useCase();
     switch (result) {
       case Success(:final value):
@@ -26,7 +30,9 @@ class ProviderBloc extends Bloc<ProviderEvent, ProviderState> {
             .toList(growable: false);
 
         if (providers.isEmpty) {
-          emit(ProviderError());
+          if (previous is! ProviderLoaded) {
+            emit(ProviderError());
+          }
           return;
         }
 
@@ -36,13 +42,12 @@ class ProviderBloc extends Bloc<ProviderEvent, ProviderState> {
         }
 
         emit(
-          ProviderLoaded(
-            providers: providers,
-            currentProviderId: resolvedId,
-          ),
+          ProviderLoaded(providers: providers, currentProviderId: resolvedId),
         );
       case Failure():
-        emit(ProviderError());
+        if (previous is! ProviderLoaded) {
+          emit(ProviderError());
+        }
     }
   }
 

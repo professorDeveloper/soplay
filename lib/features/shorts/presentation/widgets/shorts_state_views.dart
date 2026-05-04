@@ -24,9 +24,9 @@ class ShortsEmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const _ShortsMessage(
-      icon: Icons.video_library_outlined,
+      icon: Icons.movie_filter_outlined,
       title: 'No shorts yet',
-      message: 'Short scenes will appear here.',
+      message: 'Short clips will appear here once they are available.',
     );
   }
 }
@@ -44,10 +44,10 @@ class ShortsErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ShortsMessage(
-      icon: Icons.error_outline_rounded,
+      icon: Icons.wifi_off_rounded,
       title: 'Could not load shorts',
       message: message,
-      actionLabel: 'Retry',
+      actionLabel: 'Try Again',
       onAction: onRetry,
     );
   }
@@ -74,38 +74,61 @@ class _ShortsMessage extends StatelessWidget {
       color: AppColors.background,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.symmetric(horizontal: 36),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: AppColors.textSecondary, size: 42),
-              const SizedBox(height: 14),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white12, width: 1.5),
+                ),
+                child: Icon(icon, color: AppColors.textSecondary, size: 38),
+              ),
+              const SizedBox(height: 20),
               Text(
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
+                  fontSize: 13.5,
+                  height: 1.5,
                 ),
               ),
               if (actionLabel != null && onAction != null) ...[
-                const SizedBox(height: 18),
+                const SizedBox(height: 28),
                 SizedBox(
-                  width: 180,
-                  child: ElevatedButton(
+                  width: 160,
+                  height: 44,
+                  child: ElevatedButton.icon(
                     onPressed: onAction,
-                    child: Text(actionLabel!),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: Text(
+                      actionLabel!,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
                   ),
                 ),
               ],

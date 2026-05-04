@@ -28,17 +28,12 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  static const int _shortsIndex = 2;
+
   int _index = 0;
+  int _shortsRefreshTick = 0;
   late final NavController _navController;
   String? _lastProviderId;
-
-  static const _tabs = <Widget>[
-    HomePage(),
-    SearchPage(),
-    ShortsPage(),
-    MyListPage(),
-    ProfilePage(),
-  ];
 
   @override
   void initState() {
@@ -68,8 +63,29 @@ class _MainPageState extends State<MainPage> {
     context.read<SearchBloc>().add(const SearchLoad());
   }
 
+  void _onTabTap(int index) {
+    setState(() => _index = index);
+    _navController.goTo(index);
+  }
+
+  void _refreshShorts() {
+    if (_index != _shortsIndex) return;
+    setState(() => _shortsRefreshTick++);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tabs = <Widget>[
+      const HomePage(),
+      const SearchPage(),
+      ShortsPage(
+        active: _index == _shortsIndex,
+        refreshTick: _shortsRefreshTick,
+      ),
+      const MyListPage(),
+      const ProfilePage(),
+    ];
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         systemNavigationBarColor: Colors.transparent,
@@ -87,13 +103,11 @@ class _MainPageState extends State<MainPage> {
           child: Scaffold(
             backgroundColor: AppColors.background,
             extendBody: true,
-            body: IndexedStack(index: _index, children: _tabs),
+            body: IndexedStack(index: _index, children: tabs),
             bottomNavigationBar: _SoplayBottomNav(
               index: _index,
-              onTap: (i) {
-                setState(() => _index = i);
-                _navController.goTo(i);
-              },
+              onTap: _onTabTap,
+              onShortsDoubleTap: _refreshShorts,
             ),
           ),
         ),
@@ -103,10 +117,15 @@ class _MainPageState extends State<MainPage> {
 }
 
 class _SoplayBottomNav extends StatelessWidget {
-  const _SoplayBottomNav({required this.index, required this.onTap});
+  const _SoplayBottomNav({
+    required this.index,
+    required this.onTap,
+    required this.onShortsDoubleTap,
+  });
 
   final int index;
   final ValueChanged<int> onTap;
+  final VoidCallback onShortsDoubleTap;
 
   static const _items = [
     _NavItem(
@@ -169,6 +188,9 @@ class _SoplayBottomNav extends StatelessWidget {
                     item: _items[i],
                     selected: index == i,
                     onTap: () => onTap(i),
+                    onDoubleTap: i == _MainPageState._shortsIndex
+                        ? onShortsDoubleTap
+                        : null,
                   ),
                 ),
               ),
@@ -197,11 +219,13 @@ class _BottomNavButton extends StatefulWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    required this.onDoubleTap,
   });
 
   final _NavItem item;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onDoubleTap;
 
   @override
   State<_BottomNavButton> createState() => _BottomNavButtonState();
@@ -230,6 +254,7 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
         onTapCancel: () => _setPressed(false),
         onTapUp: (_) => _setPressed(false),
         onTap: widget.onTap,
+        onDoubleTap: widget.selected ? widget.onDoubleTap : null,
         child: AnimatedScale(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,

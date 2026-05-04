@@ -15,6 +15,10 @@ class ShortsRefresh extends ShortsEvent {
   const ShortsRefresh();
 }
 
+class ShortsLoadMore extends ShortsEvent {
+  const ShortsLoadMore();
+}
+
 class ShortsPageChanged extends ShortsEvent {
   const ShortsPageChanged(this.index);
 

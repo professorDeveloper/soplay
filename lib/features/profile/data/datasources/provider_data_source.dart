@@ -7,7 +7,10 @@ class ProviderDataSource {
   const ProviderDataSource({required this.dio});
 
   Future<List<ProviderModel>> getProviders() async {
-    final response = await dio.get('/contents/providers');
+    final response = await dio.get(
+      '/contents/providers',
+      options: Options(extra: const {'skipAuthInterceptor': true}),
+    );
     final data = response.data;
     final items = switch (data) {
       {'items': final List items} => items,

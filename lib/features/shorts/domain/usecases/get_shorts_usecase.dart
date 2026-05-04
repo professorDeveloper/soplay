@@ -1,5 +1,5 @@
 import 'package:soplay/core/error/result.dart';
-import 'package:soplay/features/shorts/domain/entities/short_entity.dart';
+import 'package:soplay/features/shorts/domain/entities/shorts_feed_result.dart';
 import 'package:soplay/features/shorts/domain/repositories/shorts_repository.dart';
 
 class GetShortsUseCase {
@@ -7,5 +7,6 @@ class GetShortsUseCase {
 
   final ShortsRepository repository;
 
-  Future<Result<List<ShortEntity>>> call() => repository.getShorts();
+  Future<Result<ShortsFeedResult>> call({String? cursor, int limit = 15}) =>
+      repository.getShortsFeed(cursor: cursor, limit: limit);
 }
