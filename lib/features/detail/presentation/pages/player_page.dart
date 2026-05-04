@@ -48,6 +48,9 @@ class _PlayerPageState extends State<PlayerPage>
   String? _currentQuality;
   String? _videoUrl;
   Map<String, String> _headers = const {};
+  List<VideoSourceEntity> _videoSources = const [];
+  int _currentSourceIndex = -1;
+  bool _autoFallbackUsed = false;
   String? _errorMessage;
   bool _initializing = true;
   _LoadingStage _stage = _LoadingStage.loading;
@@ -253,7 +256,12 @@ class _PlayerPageState extends State<PlayerPage>
     if (widget.args.isSerial) {
       await _loadEpisode(_episodeIndex);
     } else {
-      final source = _pickInitialMovieSource();
+      _videoSources = List.of(widget.args.videoSources);
+      _currentSourceIndex = _pickInitialMovieSourceIndex(_videoSources);
+      _autoFallbackUsed = false;
+      final source = _currentSourceIndex >= 0
+          ? _videoSources[_currentSourceIndex]
+          : null;
       _currentQuality = source?.quality;
       if (mounted) setState(() => _stage = _LoadingStage.loading);
       await _initializeWith(
@@ -263,16 +271,15 @@ class _PlayerPageState extends State<PlayerPage>
     }
   }
 
-  VideoSourceEntity? _pickInitialMovieSource() {
-    final sources = widget.args.videoSources;
-    if (sources.isEmpty) return null;
-    for (final s in sources) {
-      if (s.isDefault && s.accessible) return s;
+  int _pickInitialMovieSourceIndex(List<VideoSourceEntity> sources) {
+    if (sources.isEmpty) return -1;
+    for (var i = 0; i < sources.length; i++) {
+      if (sources[i].isDefault && sources[i].accessible) return i;
     }
-    for (final s in sources) {
-      if (s.accessible) return s;
+    for (var i = 0; i < sources.length; i++) {
+      if (sources[i].accessible) return i;
     }
-    return sources.first;
+    return 0;
   }
 
   Future<void> _loadEpisode(int index, {Duration resumeAt = Duration.zero}) async {
@@ -314,13 +321,22 @@ class _PlayerPageState extends State<PlayerPage>
 
     switch (result) {
       case Success(:final value):
+        final sources = value.videoSources;
+        final useSources = sources.isNotEmpty;
+        final pickedIdx = useSources ? 0 : -1;
+        final url = useSources ? sources[pickedIdx].videoUrl : value.videoUrl;
         setState(() {
           _stage = _LoadingStage.loading;
           _serverLangs = value.languagesAvailable;
           _currentLang = value.activeLang ?? lang ?? _currentLang;
+          _videoSources = useSources ? List.of(sources) : const [];
+          _currentSourceIndex = pickedIdx;
+          _currentQuality =
+              useSources ? sources[pickedIdx].quality : null;
+          _autoFallbackUsed = false;
         });
         await _initializeWith(
-          url: value.videoUrl,
+          url: url,
           headers: value.headers,
           resumeAt: resumeAt,
         );
@@ -367,12 +383,15 @@ class _PlayerPageState extends State<PlayerPage>
       return;
     }
     final keepPosition = _controller?.value.position ?? Duration.zero;
+    final idx = _videoSources.indexWhere((s) => s.quality == source.quality);
     _retryAttempts = 0;
     setState(() {
       _initializing = true;
       _stage = _LoadingStage.loading;
       _errorMessage = null;
       _currentQuality = source.quality;
+      _currentSourceIndex = idx >= 0 ? idx : _currentSourceIndex;
+      _autoFallbackUsed = false;
       _panel = _SidePanel.none;
     });
     await _disposeController();
@@ -380,7 +399,7 @@ class _PlayerPageState extends State<PlayerPage>
     if (!mounted) return;
     await _initializeWith(
       url: source.videoUrl,
-      headers: widget.args.headers,
+      headers: _headers.isNotEmpty ? _headers : widget.args.headers,
       resumeAt: keepPosition,
     );
   }
@@ -508,7 +527,9 @@ class _PlayerPageState extends State<PlayerPage>
     return l.contains('mediacodec') ||
         l.contains('source error') ||
         l.contains('decoder') ||
-        l.contains('renderer');
+        l.contains('renderer') ||
+        l.contains('audio') ||
+        l.contains('codec');
   }
 
   void _onMajorChange() {
@@ -567,6 +588,42 @@ class _PlayerPageState extends State<PlayerPage>
 
   Future<void> _autoRetry() async {
     if (!mounted) return;
+
+    if (!_autoFallbackUsed &&
+        _videoSources.length > 1 &&
+        _currentSourceIndex >= 0 &&
+        _currentSourceIndex + 1 < _videoSources.length) {
+      final nextIdx = _currentSourceIndex + 1;
+      final next = _videoSources[nextIdx];
+      _autoFallbackUsed = true;
+      setState(() {
+        _initializing = true;
+        _stage = _LoadingStage.loading;
+        _errorMessage = null;
+        _currentSourceIndex = nextIdx;
+        _currentQuality = next.quality;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Switching to ${next.quality}...'),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      await _disposeController();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (!mounted) return;
+      await _initializeWith(
+        url: next.videoUrl,
+        headers: _headers.isNotEmpty ? _headers : widget.args.headers,
+      );
+      _autoRetrying = false;
+      return;
+    }
+
     setState(() {
       _initializing = true;
       _stage = widget.args.isSerial
@@ -877,8 +934,7 @@ class _PlayerPageState extends State<PlayerPage>
   }
 
   void _openSettingsSheet() {
-    final hasQualities = !widget.args.isSerial &&
-        widget.args.videoSources.length > 1;
+    final hasQualities = _videoSources.length > 1;
     final langs = _availableLangsForCurrentEpisode();
     final hasLangs = langs.length > 1;
     showModalBottomSheet<void>(
@@ -1377,8 +1433,7 @@ class _PlayerPageState extends State<PlayerPage>
     final c = _controller;
     final initialized = c != null && c.value.isInitialized;
     final hasEpisodes = widget.args.isSerial && widget.args.episodes.isNotEmpty;
-    final hasQualities =
-        !widget.args.isSerial && widget.args.videoSources.length > 1;
+    final hasQualities = _videoSources.length > 1;
     final hasLangSwitcher = _availableLangsForCurrentEpisode().length > 1;
     final isBuffering = c != null && c.value.isBuffering;
 
@@ -1670,13 +1725,13 @@ class _PlayerPageState extends State<PlayerPage>
               Expanded(
                 child: isQuality
                     ? ListView.separated(
-                        itemCount: widget.args.videoSources.length,
+                        itemCount: _videoSources.length,
                         separatorBuilder: (_, _) => Divider(
                           color: Colors.white.withValues(alpha: 0.06),
                           height: 1,
                         ),
                         itemBuilder: (_, i) {
-                          final src = widget.args.videoSources[i];
+                          final src = _videoSources[i];
                           return _QualityRow(
                             source: src,
                             isActive: src.quality == _currentQuality,

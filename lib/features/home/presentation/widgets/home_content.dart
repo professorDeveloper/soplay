@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/theme/app_colors.dart';
@@ -133,11 +134,11 @@ class _GenreSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(17, 18, 16, 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(17, 18, 16, 12),
             child: Text(
-              'Janrlar',
-              style: TextStyle(
+              "genres".tr(),
+              style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,

@@ -73,6 +73,7 @@ class DetailCastSection extends StatelessWidget {
 
 class _CastCard extends StatelessWidget {
   const _CastCard({required this.cast});
+
   final CastEntity cast;
 
   @override
@@ -82,7 +83,11 @@ class _CastCard extends StatelessWidget {
         if (cast.name.trim().isEmpty) return;
         context.push(
           '/actor',
-          extra: ActorArgs(name: cast.name.trim(), image: cast.image),
+          extra: ActorArgs(
+            name: cast.name.trim(),
+            image: cast.image,
+            id: cast.id!,
+          ),
         );
       },
       child: Container(
@@ -114,6 +119,7 @@ class _CastCard extends StatelessWidget {
 
 class _CastAvatar extends StatelessWidget {
   const _CastAvatar({required this.name, required this.imageUrl});
+
   final String name;
   final String imageUrl;
 
@@ -154,6 +160,7 @@ class _CastAvatar extends StatelessWidget {
 
 class _Initials extends StatelessWidget {
   const _Initials({required this.initials});
+
   final String initials;
 
   @override

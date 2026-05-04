@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp.router(
-        title: 'Soplay',
+        title: 'app_name'.tr(),
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,

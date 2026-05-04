@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/home/presentation/bloc/view_all/view_all_bloc.dart';
@@ -14,22 +15,29 @@ import 'package:soplay/features/home/presentation/widgets/home_ui_helpers.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 
 class ActorArgs {
+  final String id;
   final String name;
   final String image;
   final String? role;
 
-  const ActorArgs({required this.name, this.image = '', this.role});
+  const ActorArgs({
+    required this.name,
+    this.image = '',
+    this.role,
+    this.id = '',
+  });
 }
 
 class ActorPage extends StatelessWidget {
   const ActorPage({super.key, required this.args});
+
   final ActorArgs args;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<ViewAllBloc>()
-        ..add(ViewAllLoad(key: 'actor', slug: args.name)),
+      create: (_) =>
+          getIt<ViewAllBloc>()..add(ViewAllLoad(key: 'actor', slug:args.name)),
       child: _ActorScaffold(args: args),
     );
   }
@@ -37,6 +45,7 @@ class ActorPage extends StatelessWidget {
 
 class _ActorScaffold extends StatefulWidget {
   const _ActorScaffold({required this.args});
+
   final ActorArgs args;
 
   @override
@@ -66,7 +75,8 @@ class _ActorScaffoldState extends State<_ActorScaffold> {
         size: const Size(120, 120),
         maximumColorCount: 12,
       );
-      final dominant = palette.vibrantColor?.color ??
+      final dominant =
+          palette.vibrantColor?.color ??
           palette.dominantColor?.color ??
           palette.mutedColor?.color ??
           _accent;
@@ -423,6 +433,7 @@ class _AvatarRing extends StatelessWidget {
     required this.name,
     required this.accent,
   });
+
   final String image;
   final String name;
   final Color accent;
@@ -481,6 +492,7 @@ class _AvatarRing extends StatelessWidget {
 
 class _AvatarInitials extends StatelessWidget {
   const _AvatarInitials({required this.initials});
+
   final String initials;
 
   @override
@@ -577,6 +589,7 @@ class _ActorTopBar extends StatelessWidget {
 
 class _ActorMovieCard extends StatelessWidget {
   const _ActorMovieCard({required this.movie});
+
   final MovieEntity movie;
 
   @override

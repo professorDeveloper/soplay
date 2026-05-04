@@ -113,7 +113,7 @@ class _NetflixSplashState extends State<NetflixSplash>
                       widthFactor: _oplayWidth.value,
                       child: Opacity(
                         opacity: _oplayOpacity.value,
-                        child: const Text('OPLAY', style: _kStyle),
+                        child: const Text('OZO', style: _kStyle),
                       ),
                     ),
                   ),

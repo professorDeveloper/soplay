@@ -205,8 +205,8 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Text(
-          'Soplay',
+        Text(
+          'app_name'.tr(),
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 20,

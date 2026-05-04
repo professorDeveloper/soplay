@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -91,6 +94,7 @@ class _ProfileViewState extends State<_ProfileView> {
 
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({required this.user});
+
   final UserEntity? user;
 
   @override
@@ -113,6 +117,7 @@ class _ProfileHeader extends StatelessWidget {
 
 class _GuestContent extends StatelessWidget {
   const _GuestContent({required this.onLogin});
+
   final VoidCallback onLogin;
 
   @override
@@ -132,8 +137,11 @@ class _GuestContent extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: const Icon(Icons.person_outline_rounded,
-                    color: AppColors.textHint, size: 28),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: AppColors.textHint,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 14),
               const Expanded(
@@ -180,6 +188,7 @@ class _GuestContent extends StatelessWidget {
 
 class _UserContent extends StatelessWidget {
   const _UserContent({required this.user});
+
   final UserEntity user;
 
   @override
@@ -249,23 +258,37 @@ class _LogoutButton extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Sign Out',
-            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-        content: const Text('Are you sure you want to sign out?',
-            style: TextStyle(color: AppColors.textSecondary)),
+        title: const Text(
+          'Sign Out',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to sign out?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel',
-                style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               context.read<AuthBloc>().add(const AuthLogoutRequested());
             },
-            child: const Text('Sign Out',
-                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -292,11 +315,13 @@ class _ProvidersSection extends StatelessWidget {
               final currentName = state is ProviderLoaded
                   ? state.currentProvider?.name ?? state.currentProviderId
                   : '—';
-              final currentProvider =
-                  state is ProviderLoaded ? state.currentProvider : null;
+              final currentProvider = state is ProviderLoaded
+                  ? state.currentProvider
+                  : null;
 
-              final count =
-                  state is ProviderLoaded ? state.providers.length : 1;
+              final count = state is ProviderLoaded
+                  ? state.providers.length
+                  : 1;
 
               return _SectionCard(
                 children: [
@@ -325,11 +350,16 @@ class _ProvidersSection extends StatelessWidget {
                         Text(
                           currentName,
                           style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 14),
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.textHint, size: 20),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.textHint,
+                          size: 20,
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -403,15 +433,15 @@ class _ProvidersSheet extends StatelessWidget {
                 Expanded(
                   child: switch (state) {
                     ProviderLoaded() => _ProvidersList(
-                        state: state,
-                        scrollController: scrollController,
-                        bottomPad: bottomPad,
-                      ),
+                      state: state,
+                      scrollController: scrollController,
+                      bottomPad: bottomPad,
+                    ),
                     ProviderError() => _ProvidersError(
-                        onRetry: () => context
-                            .read<ProviderBloc>()
-                            .add(const ProviderLoad()),
+                      onRetry: () => context.read<ProviderBloc>().add(
+                        const ProviderLoad(),
                       ),
+                    ),
                     _ => const _ProvidersLoading(),
                   },
                 ),
@@ -487,8 +517,7 @@ class _ProviderListTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 _ProviderLogo(provider: provider, size: 40),
@@ -505,8 +534,9 @@ class _ProviderListTile extends StatelessWidget {
                               ? AppColors.textPrimary
                               : AppColors.textSecondary,
                           fontSize: 14,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           height: 1.2,
                         ),
                         maxLines: 1,
@@ -537,12 +567,18 @@ class _ProviderListTile extends StatelessWidget {
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 12),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 12,
+                    ),
                   )
                 else
-                  const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textHint, size: 20),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textHint,
+                    size: 20,
+                  ),
               ],
             ),
           ),
@@ -558,13 +594,17 @@ class _ProvidersLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textHint),
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: AppColors.textHint,
+      ),
     );
   }
 }
 
 class _ProvidersError extends StatelessWidget {
   const _ProvidersError({required this.onRetry});
+
   final VoidCallback onRetry;
 
   @override
@@ -573,11 +613,16 @@ class _ProvidersError extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: AppColors.textHint, size: 36),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.textHint,
+            size: 36,
+          ),
           const SizedBox(height: 10),
-          const Text('Failed to load providers.',
-              style: TextStyle(color: AppColors.textSecondary)),
+          const Text(
+            'Failed to load providers.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
           const SizedBox(height: 14),
           OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
@@ -585,8 +630,6 @@ class _ProvidersError extends StatelessWidget {
     );
   }
 }
-
-// ─── About Section ────────────────────────────────────────────────────────────
 
 class _AboutSection extends StatelessWidget {
   const _AboutSection();
@@ -604,9 +647,9 @@ class _AboutSection extends StatelessWidget {
             children: [
               _Tile(
                 icon: Icons.info_outline_rounded,
-                title: 'Soplay',
-                trailing: const Text(
-                  '1.0.0',
+                title: "app_name".tr(),
+                trailing: Text(
+                  "1.0",
                   style: TextStyle(color: AppColors.textHint, fontSize: 13),
                 ),
                 onTap: null,
@@ -618,8 +661,6 @@ class _AboutSection extends StatelessWidget {
     );
   }
 }
-
-// ─── Shared Sheet Widgets ─────────────────────────────────────────────────────
 
 class _SheetHandle extends StatelessWidget {
   @override
@@ -640,6 +681,7 @@ class _SheetHandle extends StatelessWidget {
 
 class _SheetHeader extends StatelessWidget {
   const _SheetHeader({required this.title, this.subtitle});
+
   final String title;
   final String? subtitle;
 
@@ -666,7 +708,9 @@ class _SheetHeader extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: const TextStyle(
-                        color: AppColors.textHint, fontSize: 13),
+                      color: AppColors.textHint,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ],
@@ -674,7 +718,10 @@ class _SheetHeader extends StatelessWidget {
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.close_rounded,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -682,10 +729,9 @@ class _SheetHeader extends StatelessWidget {
   }
 }
 
-// ─── Shared Section Widgets ───────────────────────────────────────────────────
-
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.children});
+
   final List<Widget> children;
 
   @override
@@ -703,6 +749,7 @@ class _SectionCard extends StatelessWidget {
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.label);
+
   final String label;
 
   @override
@@ -774,10 +821,9 @@ class _Tile extends StatelessWidget {
   }
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.user});
+
   final UserEntity user;
 
   @override
@@ -814,6 +860,7 @@ class _Avatar extends StatelessWidget {
 
 class _Initials extends StatelessWidget {
   const _Initials({required this.initials});
+
   final String initials;
 
   @override
@@ -831,10 +878,9 @@ class _Initials extends StatelessWidget {
   }
 }
 
-// ─── Provider Logo ────────────────────────────────────────────────────────────
-
 class _ProviderLogo extends StatelessWidget {
   const _ProviderLogo({required this.provider, this.size = 42});
+
   final ProviderEntity provider;
   final double size;
 
@@ -858,6 +904,7 @@ class _ProviderLogo extends StatelessWidget {
 
 class _ProviderFallback extends StatelessWidget {
   const _ProviderFallback({required this.name, required this.size});
+
   final String name;
   final double size;
 

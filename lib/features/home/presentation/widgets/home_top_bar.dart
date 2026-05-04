@@ -40,7 +40,7 @@ class HomeTopBar extends StatelessWidget {
       child: Row(
         children: [
           const Text(
-            'SOPLAY',
+            'SOZO',
             style: TextStyle(
               color: AppColors.primary,
               fontSize: 22,

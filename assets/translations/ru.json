@@ -1,6 +1,5 @@
 {
-  "app_name": "Soplay",
-  "general": {
+  "app_name": "Sozo",  "general": {
     "loading": "Загрузка...",
     "error": "Что-то пошло не так",
     "retry": "Повторить",

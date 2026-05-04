@@ -38,6 +38,7 @@ dependencies:
   animated_text_kit: ^4.3.0
   flutter_bloc: ^9.1.0
   equatable: ^2.0.7
+  package_info_plus: ^8.1.2
 
   # Dependency Injection
   get_it: ^8.0.3
