@@ -697,7 +697,9 @@ class _ShortReelItemState extends State<ShortReelItem>
             ],
           ),
         ),
-        if (s.contentUrl.trim().isNotEmpty || s.contentTitle.isNotEmpty)
+        if (s.contentTitle.isNotEmpty ||
+            s.contentUrl.trim().isNotEmpty ||
+            s.tags.isNotEmpty)
           _buildPillButton(s),
         const SizedBox(height: 10),
         _buildSeekSection(),
@@ -757,21 +759,27 @@ class _ShortReelItemState extends State<ShortReelItem>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (s.contentTitle.isNotEmpty)
-                      Text(
-                        s.contentTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        ),
+                    Text(
+                      s.contentTitle.isNotEmpty
+                          ? s.contentTitle
+                          : s.tags.isNotEmpty
+                              ? s.tags.first[0].toUpperCase() +
+                                  s.tags.first.substring(1)
+                              : 'Movies',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
                       ),
-                    const Text(
-                      'Watch Full Movie',
-                      style: TextStyle(
+                    ),
+                    Text(
+                      s.contentUrl.trim().isNotEmpty
+                          ? 'Watch Full Movie'
+                          : 'Browse Movies',
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,

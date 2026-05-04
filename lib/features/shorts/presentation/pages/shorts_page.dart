@@ -5,6 +5,7 @@ import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/detail/domain/entities/detail_args.dart';
+import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/shorts/domain/entities/short_entity.dart';
 import 'package:soplay/features/shorts/presentation/bloc/shorts_bloc.dart';
 import 'package:soplay/features/shorts/presentation/bloc/shorts_event.dart';
@@ -96,20 +97,36 @@ class _ShortsViewState extends State<_ShortsView>
     ));
   }
 
-  Future<void> _openDetail(ShortEntity short) async {
-    final contentUrl = short.contentUrl.trim();
-    if (contentUrl.isEmpty) {
-      _showNotice('Detail is not available');
-      return;
-    }
-    setState(() => _detailOpen = true);
+  Future<void> _openContent(ShortEntity short) async {
     final provider = short.provider.trim();
     if (provider.isNotEmpty) {
       await getIt<HiveService>().saveCurrentProvider(provider);
     }
     if (!mounted) return;
-    await context.push('/detail', extra: DetailArgs(contentUrl: contentUrl));
-    if (mounted) setState(() => _detailOpen = false);
+
+    final contentUrl = short.contentUrl.trim();
+    if (contentUrl.isNotEmpty) {
+      setState(() => _detailOpen = true);
+      await context.push(
+        '/detail',
+        extra: DetailArgs(contentUrl: contentUrl),
+      );
+      if (mounted) setState(() => _detailOpen = false);
+      return;
+    }
+
+    final slug = short.tags.isNotEmpty ? short.tags.first : '';
+    if (slug.isNotEmpty) {
+      setState(() => _detailOpen = true);
+      await context.push(
+        '/view-all',
+        extra: ViewAllEntity(slug: slug, type: 'movies'),
+      );
+      if (mounted) setState(() => _detailOpen = false);
+      return;
+    }
+
+    _showNotice('Content not available');
   }
 
   @override
@@ -180,7 +197,7 @@ class _ShortsViewState extends State<_ShortsView>
                             onLike: () => context
                                 .read<ShortsBloc>()
                                 .add(ShortsLikeToggled(item.id)),
-                            onOpenDetail: () => _openDetail(item),
+                            onOpenDetail: () => _openContent(item),
                           );
                         },
                       ),
