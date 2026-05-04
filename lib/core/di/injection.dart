@@ -63,7 +63,7 @@ Future<void> configureDependencies() async {
       dio: dio,
       onSessionExpired: () {
         if (getIt.isRegistered<AuthBloc>()) {
-          getIt<AuthBloc>().add(const AuthSessionExpired());
+          getIt<AuthBloc>().add( AuthSessionExpired());
         }
       },
     ),
