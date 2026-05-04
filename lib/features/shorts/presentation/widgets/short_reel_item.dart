@@ -242,42 +242,47 @@ class _ShortReelItemState extends State<ShortReelItem>
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _onTap,
-      onDoubleTapDown: _onDoubleTapDown,
-      onDoubleTap: () {},
-      onLongPressStart: _onLongPressStart,
-      onLongPressEnd: _onLongPressEnd,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _buildVideoBackground(),
-          _buildBottomScrim(),
-          if (_hasError) _buildErrorOverlay(),
-          if (!_hasError && (!_initialized || _isBuffering))
-            const Center(child: _BufferingSpinner()),
-          if (_showPlayPause) _buildPlayPauseCenter(),
-          if (_speedBoosting) _buildSpeedBadge(),
-          Positioned(
-            right: 12,
-            bottom: bottom + 100,
-            child: _buildSideRail(),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _onTap,
+          onDoubleTapDown: _onDoubleTapDown,
+          onDoubleTap: () {},
+          onLongPressStart: _onLongPressStart,
+          onLongPressEnd: _onLongPressEnd,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildVideoBackground(),
+              _buildBottomScrim(),
+              if (_hasError) _buildErrorOverlay(),
+              if (!_hasError && (!_initialized || _isBuffering))
+                const Center(child: _BufferingSpinner()),
+            ],
           ),
+        ),
+        if (_showPlayPause) _buildPlayPauseCenter(),
+        if (_speedBoosting) _buildSpeedBadge(),
+        Positioned(
+          right: 12,
+          bottom: bottom + 100,
+          child: _buildSideRail(),
+        ),
+        Positioned(
+          left: 14,
+          right: 14,
+          bottom: bottom + 12,
+          child: _buildBottomSection(),
+        ),
+        if (_showHeart)
           Positioned(
-            left: 14,
-            right: 14,
-            bottom: bottom + 12,
-            child: _buildBottomSection(),
+            left: _heartPos.dx - 40,
+            top: _heartPos.dy - 40,
+            child: const _HeartBurst(),
           ),
-          if (_showHeart)
-            Positioned(
-              left: _heartPos.dx - 40,
-              top: _heartPos.dy - 40,
-              child: const _HeartBurst(),
-            ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -547,26 +552,52 @@ class _ShortReelItemState extends State<ShortReelItem>
           child: child,
         ),
         child: Container(
-          width: 40, height: 40,
+          width: 48, height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white30, width: 2),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.4),
+              width: 2.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 8,
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.05),
+                blurRadius: 6,
               ),
             ],
           ),
           child: ClipOval(
-            child: Image.network(
-              s.contentThumbnail,
-              fit: BoxFit.cover,
-              errorBuilder: (_, e, st) => Container(
-                color: Colors.white12,
-                child: const Icon(Icons.music_note_rounded,
-                    color: Colors.white54, size: 18),
-              ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  s.contentThumbnail,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, e, st) => Container(
+                    color: const Color(0xFF2A2A2A),
+                    child: const Icon(Icons.movie_rounded,
+                        color: Colors.white54, size: 22),
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    width: 14, height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
