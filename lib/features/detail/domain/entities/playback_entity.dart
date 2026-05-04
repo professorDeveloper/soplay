@@ -8,11 +8,13 @@ class PlaybackEntity {
   final List<EpisodeEntity> episodes;
   final List<VideoSourceEntity> videoSources;
   final String? playerSrc;
+  final String? type;
   final Map<String, String> headers;
   final int page;
   final int size;
   final int total;
   final int totalPages;
+  final String sort;
 
   const PlaybackEntity({
     required this.provider,
@@ -22,9 +24,11 @@ class PlaybackEntity {
     required this.videoSources,
     required this.playerSrc,
     required this.headers,
+    this.type,
     this.page = 1,
     this.size = 100,
     this.total = 0,
     this.totalPages = 1,
+    this.sort = 'asc',
   });
 }

@@ -9,6 +9,7 @@ import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/resend_otp_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/verify_otp_usecase.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:soplay/features/auth/presentation/bloc/auth_event.dart';
 import 'package:soplay/features/comments/data/datasources/comments_data_source.dart';
 import 'package:soplay/features/comments/data/repositories/comments_repository_impl.dart';
 import 'package:soplay/features/comments/domain/repositories/comments_repository.dart';
@@ -57,7 +58,15 @@ Future<void> configureDependencies() async {
   );
   dio.interceptors.add(LoggingInterceptor());
   dio.interceptors.add(
-    AuthInterceptor(hiveService: getIt<HiveService>(), dio: dio),
+    AuthInterceptor(
+      hiveService: getIt<HiveService>(),
+      dio: dio,
+      onSessionExpired: () {
+        if (getIt.isRegistered<AuthBloc>()) {
+          getIt<AuthBloc>().add(const AuthSessionExpired());
+        }
+      },
+    ),
   );
   getIt.registerSingleton<Dio>(dio);
 
@@ -130,7 +139,7 @@ Future<void> configureDependencies() async {
     GetProvidersUseCase(getIt<ProviderRepository>()),
   );
 
-  getIt.registerFactory(
+  getIt.registerLazySingleton<AuthBloc>(
     () => AuthBloc(
       loginUseCase: getIt<LoginUseCase>(),
       registerUseCase: getIt<RegisterUseCase>(),

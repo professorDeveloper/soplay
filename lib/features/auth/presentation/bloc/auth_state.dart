@@ -33,7 +33,6 @@ class AuthLoaded extends AuthState {
   ];
 }
 
-/// Register OTP yuborildi — verify page'ga o'tish kerak.
 class AuthOtpPending extends AuthState {
   final String email;
   final DateTime cooldownUntil;

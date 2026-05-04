@@ -32,6 +32,7 @@ class _EpisodesPageState extends State<EpisodesPage> {
   String _sort = 'asc';
   bool _loadingMore = false;
   bool _resorting = false;
+  bool _showImages = false;
   String? _error;
 
   @override
@@ -43,7 +44,16 @@ class _EpisodesPageState extends State<EpisodesPage> {
     _totalPages = widget.args.totalPages;
     _total = widget.args.total > 0 ? widget.args.total : _episodes.length;
     _size = widget.args.size;
+    _showImages = _hasAnyImage(_episodes);
     _scroll.addListener(_onScroll);
+  }
+
+  static bool _hasAnyImage(List<EpisodeEntity> list) {
+    for (final e in list) {
+      final img = e.image;
+      if (img != null && img.isNotEmpty) return true;
+    }
+    return false;
   }
 
   @override
@@ -85,11 +95,13 @@ class _EpisodesPageState extends State<EpisodesPage> {
     if (!mounted) return;
     switch (result) {
       case Success(:final value):
+        final merged = [..._episodes, ...value.episodes];
         setState(() {
           _page = value.page;
           _totalPages = value.totalPages;
           _total = value.total > 0 ? value.total : _total;
-          _episodes = [..._episodes, ...value.episodes];
+          _episodes = merged;
+          _showImages = _showImages || _hasAnyImage(value.episodes);
           _loadingMore = false;
         });
       case Failure(:final error):
@@ -116,12 +128,14 @@ class _EpisodesPageState extends State<EpisodesPage> {
     if (!mounted) return;
     switch (result) {
       case Success(:final value):
+        final fresh = List.of(value.episodes);
         setState(() {
           _sort = next;
-          _episodes = List.of(value.episodes);
+          _episodes = fresh;
           _page = value.page;
           _totalPages = value.totalPages;
           _total = value.total > 0 ? value.total : _total;
+          _showImages = _hasAnyImage(fresh);
           _resorting = false;
         });
         if (_scroll.hasClients) {
@@ -199,13 +213,14 @@ class _EpisodesPageState extends State<EpisodesPage> {
                       ),
                       SliverList.separated(
                         itemCount: _episodes.length,
-                        separatorBuilder: (_, _) => const Divider(
+                        separatorBuilder: (_, _) => Divider(
                           color: AppColors.divider,
                           height: 1,
-                          indent: 76,
+                          indent: _showImages ? 116 : 76,
                         ),
                         itemBuilder: (_, i) => _EpisodeRow(
                           episode: _episodes[i],
+                          showImage: _showImages,
                           onTap: () => _playFrom(i),
                         ),
                       ),
@@ -446,43 +461,82 @@ class _LoadMoreError extends StatelessWidget {
 }
 
 class _EpisodeRow extends StatelessWidget {
-  const _EpisodeRow({required this.episode, required this.onTap});
+  const _EpisodeRow({
+    required this.episode,
+    required this.showImage,
+    required this.onTap,
+  });
 
   final EpisodeEntity episode;
+  final bool showImage;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final hasSub = episode.hasSub == true;
     final hasDub = episode.hasDub == true;
+    final label = episode.label.isNotEmpty
+        ? episode.label
+        : 'Episode ${episode.episode}';
+
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: showImage ? 8 : 14,
+        ),
         child: Row(
           children: [
-            SizedBox(
-              width: 44,
-              child: Text(
-                '${episode.episode}'.padLeft(2, '0'),
-                style: const TextStyle(
-                  color: AppColors.textHint,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
+            if (showImage) ...[
+              _EpisodeThumb(image: episode.image, episode: episode.episode),
+              const SizedBox(width: 12),
+            ] else
+              SizedBox(
+                width: 44,
+                child: Text(
+                  '${episode.episode}'.padLeft(2, '0'),
+                  style: const TextStyle(
+                    color: AppColors.textHint,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
+            if (!showImage) const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                episode.label.isNotEmpty
-                    ? episode.label
-                    : 'Episode ${episode.episode}',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    maxLines: showImage ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: showImage
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                      fontSize: showImage ? 13 : 14,
+                      fontWeight:
+                          showImage ? FontWeight.w600 : FontWeight.w500,
+                      height: 1.25,
+                    ),
+                  ),
+                  if (showImage && _meta(episode).isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _meta(episode),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textHint,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             if (hasSub) const _LangChip(label: 'SUB', primary: true),
@@ -490,8 +544,8 @@ class _EpisodeRow extends StatelessWidget {
             if (hasDub) const _LangChip(label: 'DUB', primary: false),
             if (hasSub || hasDub) const SizedBox(width: 10),
             Container(
-              width: 36,
-              height: 36,
+              width: 34,
+              height: 34,
               decoration: const BoxDecoration(
                 color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
@@ -499,11 +553,89 @@ class _EpisodeRow extends StatelessWidget {
               child: const Icon(
                 Icons.play_arrow_rounded,
                 color: AppColors.textPrimary,
-                size: 20,
+                size: 18,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _meta(EpisodeEntity e) {
+    final parts = <String>[];
+    final air = e.airdate;
+    final run = e.runtime;
+    if (air != null && air.isNotEmpty) parts.add(air);
+    if (run != null && run.isNotEmpty) parts.add(run);
+    return parts.join(' · ');
+  }
+}
+
+class _EpisodeThumb extends StatelessWidget {
+  const _EpisodeThumb({required this.image, required this.episode});
+  final String? image;
+  final int episode;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 88,
+        height: 50,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (image != null && image!.isNotEmpty)
+              Image.network(
+                image!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _ThumbFallback(),
+                loadingBuilder: (_, child, chunk) =>
+                    chunk == null ? child : const _ThumbFallback(),
+              )
+            else
+              const _ThumbFallback(),
+            Positioned(
+              left: 4,
+              bottom: 3,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  episode.toString().padLeft(2, '0'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThumbFallback extends StatelessWidget {
+  const _ThumbFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surfaceVariant,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.movie_outlined,
+        color: AppColors.textHint,
+        size: 18,
       ),
     );
   }

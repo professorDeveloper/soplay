@@ -8,6 +8,10 @@ class EpisodeModel extends EpisodeEntity {
     super.availableLangs,
     super.hasSub,
     super.hasDub,
+    super.image,
+    super.airdate,
+    super.runtime,
+    super.overview,
   });
 
   factory EpisodeModel.fromJson(Map<String, dynamic> json) => EpisodeModel(
@@ -17,6 +21,10 @@ class EpisodeModel extends EpisodeEntity {
         availableLangs: _parseLangs(json['availableLangs']),
         hasSub: json['hasSub'] as bool?,
         hasDub: json['hasDub'] as bool?,
+        image: _stringOrNull(json['image']),
+        airdate: _stringOrNull(json['airdate']),
+        runtime: _stringOrNull(json['runtime']),
+        overview: _stringOrNull(json['overview']),
       );
 
   static List<String> _parseLangs(dynamic raw) {
@@ -25,5 +33,11 @@ class EpisodeModel extends EpisodeEntity {
         .whereType<String>()
         .map((e) => e.toLowerCase())
         .toList(growable: false);
+  }
+
+  static String? _stringOrNull(dynamic raw) {
+    if (raw is! String) return null;
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

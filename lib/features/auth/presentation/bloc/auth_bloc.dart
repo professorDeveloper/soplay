@@ -36,8 +36,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthOtpResendRequested>(_onResendOtp);
     on<AuthOtpReset>((_, emit) => emit(AuthInitial()));
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthSessionExpired>(_onSessionExpired);
     on<AuthProfileRefreshRequested>(_onProfileRefresh);
     add(const AuthStarted());
+  }
+
+  Future<void> _onSessionExpired(
+    AuthSessionExpired event,
+    Emitter<AuthState> emit,
+  ) async {
+    await hiveService.clearAuth();
+    emit(AuthInitial());
   }
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {

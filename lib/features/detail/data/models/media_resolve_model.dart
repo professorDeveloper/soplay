@@ -1,17 +1,27 @@
+import 'package:soplay/features/detail/data/models/video_source_model.dart';
 import 'package:soplay/features/detail/domain/entities/media_resolve_entity.dart';
 
 class MediaResolveModel extends MediaResolveEntity {
   const MediaResolveModel({
     required super.videoUrl,
     required super.headers,
+    super.type,
+    super.videoSources,
     super.languagesAvailable,
     super.activeLang,
   });
 
   factory MediaResolveModel.fromJson(Map<String, dynamic> json) {
+    final typeRaw = json['type'] as String?;
+    final sources = (json['videoSources'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(VideoSourceModel.fromJson)
+        .toList(growable: false);
     return MediaResolveModel(
       videoUrl: json['videoUrl'] as String? ?? '',
+      type: typeRaw == null || typeRaw.isEmpty ? null : typeRaw.toLowerCase(),
       headers: _parseHeaders(json['headers']),
+      videoSources: sources,
       languagesAvailable: _parseLangs(json['languagesAvailable']),
       activeLang: _parseActiveLang(json['server']),
     );

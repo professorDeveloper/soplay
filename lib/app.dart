@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
+        BlocProvider<AuthBloc>.value(value: getIt<AuthBloc>()),
         BlocProvider<ViewAllBloc>(create: (_) => getIt<ViewAllBloc>()),
         BlocProvider<HomeBloc>(create: (_) => getIt<HomeBloc>()),
         BlocProvider<SearchBloc>(create: (_) => getIt<SearchBloc>()),

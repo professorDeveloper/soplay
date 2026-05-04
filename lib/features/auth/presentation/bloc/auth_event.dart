@@ -66,6 +66,10 @@ class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
+class AuthSessionExpired extends AuthEvent {
+  const AuthSessionExpired();
+}
+
 class AuthProfileRefreshRequested extends AuthEvent {
   const AuthProfileRefreshRequested();
 }

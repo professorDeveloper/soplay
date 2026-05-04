@@ -11,10 +11,12 @@ class PlaybackModel extends PlaybackEntity {
     required super.videoSources,
     required super.playerSrc,
     required super.headers,
+    super.type,
     super.page,
     super.size,
     super.total,
     super.totalPages,
+    super.sort,
   });
 
   factory PlaybackModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class PlaybackModel extends PlaybackEntity {
         .toList();
 
     final src = json['playerSrc'] as String?;
+    final typeRaw = json['type'] as String?;
 
     return PlaybackModel(
       provider: json['provider'] as String? ?? '',
@@ -35,11 +38,13 @@ class PlaybackModel extends PlaybackEntity {
       episodes: episodes,
       videoSources: videoSources,
       playerSrc: src == null || src.isEmpty ? null : src,
+      type: typeRaw == null || typeRaw.isEmpty ? null : typeRaw.toLowerCase(),
       headers: _parseHeaders(json['headers']),
       page: (json['page'] as num?)?.toInt() ?? 1,
       size: (json['size'] as num?)?.toInt() ?? 100,
       total: (json['total'] as num?)?.toInt() ?? episodes.length,
       totalPages: (json['totalPages'] as num?)?.toInt() ?? 1,
+      sort: (json['sort'] as String?)?.toLowerCase() ?? 'asc',
     );
   }
 
