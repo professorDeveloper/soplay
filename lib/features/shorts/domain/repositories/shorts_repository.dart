@@ -6,6 +6,7 @@ import 'package:soplay/features/shorts/domain/entities/shorts_feed_result.dart';
 abstract class ShortsRepository {
   Future<Result<ShortsFeedResult>> getShortsFeed({
     String? cursor,
+    String? query,
     int limit,
   });
   Future<Result<ShortEntity>> getShort(String id);

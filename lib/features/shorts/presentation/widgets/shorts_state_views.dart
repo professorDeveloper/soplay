@@ -82,7 +82,7 @@ class _ShortsMessage extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white12, width: 1.5),
                 ),

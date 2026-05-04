@@ -7,6 +7,10 @@ class GetShortsUseCase {
 
   final ShortsRepository repository;
 
-  Future<Result<ShortsFeedResult>> call({String? cursor, int limit = 15}) =>
-      repository.getShortsFeed(cursor: cursor, limit: limit);
+  Future<Result<ShortsFeedResult>> call({
+    String? cursor,
+    String? query,
+    int limit = 15,
+  }) =>
+      repository.getShortsFeed(cursor: cursor, query: query, limit: limit);
 }

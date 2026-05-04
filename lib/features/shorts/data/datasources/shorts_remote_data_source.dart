@@ -10,16 +10,18 @@ class ShortsRemoteDataSource {
 
   Future<ShortsFeedResult> getShortsFeed({
     String? cursor,
+    String? query,
     int limit = 15,
   }) async {
     final params = <String, dynamic>{'limit': limit};
     if (cursor != null) params['cursor'] = cursor;
+    if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
 
     final response = await dio.get('/shorts/feed', queryParameters: params);
     final data = response.data;
 
     final rawItems = data is Map
-        ? (data['items'] ?? data['data'] ?? data['results'] ?? const [])
+        ? (data['items'] ?? const [])
         : (data is List ? data : const []);
 
     final items = (rawItems as List)
@@ -28,8 +30,7 @@ class ShortsRemoteDataSource {
         .where((e) => e.id.isNotEmpty && e.videoUrl.isNotEmpty)
         .toList(growable: false);
 
-    final nextCursor =
-        data is Map ? (data['nextCursor'] as String?) : null;
+    final nextCursor = data is Map ? (data['nextCursor'] as String?) : null;
     final hasMore = data is Map
         ? (data['hasMore'] as bool? ?? nextCursor != null)
         : false;

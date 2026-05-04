@@ -36,6 +36,8 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
   final HiveService _hiveService;
   final Set<String> _viewedIds = {};
   int _noticeId = 0;
+  bool _signInNoticeShown = false;
+  DateTime? _lastNoticeTime;
 
   Future<void> _onLoad(ShortsLoad event, Emitter<ShortsState> emit) async {
     emit(const ShortsLoading());
@@ -53,6 +55,7 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
       emit(const ShortsLoading());
     }
     _viewedIds.clear();
+    _signInNoticeShown = false;
     await _loadFeed(emit);
   }
 
@@ -128,7 +131,10 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
     final current = state;
     if (current is! ShortsLoaded) return;
     if (!_hiveService.isLoggedIn) {
-      emit(_notice(current, 'Please sign in to like'));
+      if (!_signInNoticeShown) {
+        _signInNoticeShown = true;
+        emit(_notice(current, 'Please sign in to like'));
+      }
       return;
     }
     if (current.loadingLikeIds.contains(event.id)) return;
@@ -178,11 +184,8 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
           ),
           loadingLikeIds: idle,
         ));
-      case Failure<ShortLikeResult?>(:final error):
-        emit(_notice(
-          after.copyWith(items: current.items, loadingLikeIds: idle),
-          _message(error),
-        ));
+      case Failure<ShortLikeResult?>():
+        emit(after.copyWith(items: current.items, loadingLikeIds: idle));
     }
   }
 
@@ -197,6 +200,12 @@ class ShortsBloc extends Bloc<ShortsEvent, ShortsState> {
   }
 
   ShortsLoaded _notice(ShortsLoaded state, String message) {
+    final now = DateTime.now();
+    if (_lastNoticeTime != null &&
+        now.difference(_lastNoticeTime!).inSeconds < 3) {
+      return state;
+    }
+    _lastNoticeTime = now;
     _noticeId++;
     return state.copyWith(notice: message, noticeId: _noticeId);
   }

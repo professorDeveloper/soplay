@@ -49,7 +49,9 @@ Response:
 }
 ```
 
-**Fields NOT in response** (must be removed from entity): `author`, `authorAvatar`, `description`, `contentUrl`.
+**Fields NOT shown in sample but may still exist**: `contentUrl` — needed for detail navigation via `DetailArgs`. Keep in entity.
+
+**Fields to remove from entity** (not in API): `author`, `authorAvatar`, `description`.
 
 ### Other Endpoints (unchanged)
 
@@ -65,7 +67,7 @@ Response:
 
 ### ShortEntity — update fields to match API
 
-Remove: `author`, `authorAvatar`, `description`, `contentUrl`.
+Remove: `author`, `authorAvatar`, `description`.
 
 Keep/rename:
 - `id` <- `_id`
@@ -281,13 +283,9 @@ Left-aligned, right padding for side rail (76px).
 
 ## Detail Navigation
 
-Current code uses `contentUrl` to open detail. Since API no longer has `contentUrl`, the detail opening needs to work with available fields.
+`DetailArgs` requires `contentUrl`. The API sample didn't list `contentUrl` but user stated "item format unchanged" — so `contentUrl` is assumed to still be present. The existing `_openDetail` flow (save provider to Hive, push `/detail` with `DetailArgs(contentUrl: ...)`) remains unchanged.
 
-Options (depends on how DetailArgs works):
-- Use `contentTitle` + `provider` to construct the detail URL
-- Or the detail page accepts `contentTitle` as identifier
-
-This needs to be verified against the existing `DetailArgs` class. If `contentUrl` is truly gone from API, the `_openDetail` logic needs updating.
+If `contentUrl` turns out to be missing at runtime, the pill button hides itself (same as current behavior: `if (short.contentUrl.trim().isNotEmpty)`).
 
 ---
 

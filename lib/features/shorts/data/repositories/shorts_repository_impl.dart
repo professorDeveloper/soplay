@@ -14,11 +14,12 @@ class ShortsRepositoryImpl implements ShortsRepository {
   @override
   Future<Result<ShortsFeedResult>> getShortsFeed({
     String? cursor,
+    String? query,
     int limit = 15,
   }) async {
     try {
       return Success(
-        await dataSource.getShortsFeed(cursor: cursor, limit: limit),
+        await dataSource.getShortsFeed(cursor: cursor, query: query, limit: limit),
       );
     } on DioException catch (e) {
       return Failure(Exception(_messageFrom(e)));
