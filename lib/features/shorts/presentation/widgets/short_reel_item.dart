@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../domain/entities/short_entity.dart';
@@ -39,6 +38,7 @@ class _ShortReelItemState extends State<ShortReelItem>
   double _seekValue = 0;
   bool _showHeart = false;
   Offset _heartPos = Offset.zero;
+  bool _muted = false;
 
   late final AnimationController _playPauseAnim = AnimationController(
     vsync: this,
@@ -52,6 +52,11 @@ class _ShortReelItemState extends State<ShortReelItem>
   late final Animation<double> _overlayFade = CurvedAnimation(
     parent: _overlayAnim,
     curve: Curves.easeInOut,
+  );
+
+  late final AnimationController _discAnim = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 8),
   );
 
   static const _hideDelay = Duration(seconds: 3);
@@ -68,10 +73,12 @@ class _ShortReelItemState extends State<ShortReelItem>
     if (oldWidget.active != widget.active) {
       if (!widget.active) {
         _vpc?.pause();
+        _discAnim.stop();
         _hideControlsNow();
         if (_speedBoosting) _stopSpeedBoost();
       } else {
         _vpc?.play();
+        _discAnim.repeat();
       }
     }
   }
@@ -80,6 +87,7 @@ class _ShortReelItemState extends State<ShortReelItem>
   void dispose() {
     _playPauseAnim.dispose();
     _overlayAnim.dispose();
+    _discAnim.dispose();
     _vpc?.removeListener(_onTick);
     _vpc?.dispose();
     super.dispose();
@@ -95,7 +103,10 @@ class _ShortReelItemState extends State<ShortReelItem>
       if (!mounted) return;
       c.setLooping(true);
       c.addListener(_onTick);
-      if (widget.active) c.play();
+      if (widget.active) {
+        c.play();
+        _discAnim.repeat();
+      }
       setState(() {});
     } catch (_) {
       if (mounted) setState(() => _hasError = true);
@@ -135,9 +146,11 @@ class _ShortReelItemState extends State<ShortReelItem>
     HapticFeedback.lightImpact();
     if (_isPlaying) {
       _vpc?.pause();
+      _discAnim.stop();
       _lastIconWasPause = true;
     } else {
       _vpc?.play();
+      _discAnim.repeat();
       _lastIconWasPause = false;
     }
     _showPlayPauseIcon();
@@ -219,9 +232,10 @@ class _ShortReelItemState extends State<ShortReelItem>
     _scheduleHide();
   }
 
-  void _onShare() {
-    final title = widget.short.title;
-    Share.share(title.isNotEmpty ? title : 'Check out this short!');
+  void _toggleMute() {
+    HapticFeedback.lightImpact();
+    setState(() => _muted = !_muted);
+    _vpc?.setVolume(_muted ? 0.0 : 1.0);
   }
 
   @override
@@ -301,7 +315,7 @@ class _ShortReelItemState extends State<ShortReelItem>
                   const ColoredBox(color: Colors.black),
             ),
           ),
-          ColoredBox(color: Colors.black.withValues(alpha:0.3)),
+          ColoredBox(color: Colors.black.withValues(alpha: 0.3)),
         ],
       ),
     );
@@ -309,10 +323,7 @@ class _ShortReelItemState extends State<ShortReelItem>
 
   Widget _buildBottomScrim() {
     return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 350,
+      left: 0, right: 0, bottom: 0, height: 350,
       child: IgnorePointer(
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -321,8 +332,8 @@ class _ShortReelItemState extends State<ShortReelItem>
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                Colors.black.withValues(alpha:0.4),
-                Colors.black.withValues(alpha:0.85),
+                Colors.black.withValues(alpha: 0.4),
+                Colors.black.withValues(alpha: 0.85),
               ],
               stops: const [0.0, 0.4, 1.0],
             ),
@@ -361,7 +372,8 @@ class _ShortReelItemState extends State<ShortReelItem>
           final scale = t < 0.3
               ? Curves.elasticOut.transform((t / 0.3).clamp(0.0, 1.0))
               : 1.0;
-          final opacity = t < 0.5 ? 1.0 : (1.0 - ((t - 0.5) * 2)).clamp(0.0, 1.0);
+          final opacity =
+              t < 0.5 ? 1.0 : (1.0 - ((t - 0.5) * 2)).clamp(0.0, 1.0);
           return IgnorePointer(
             child: Opacity(
               opacity: opacity,
@@ -371,7 +383,7 @@ class _ShortReelItemState extends State<ShortReelItem>
                   width: 70,
                   height: 70,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha:0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -393,8 +405,7 @@ class _ShortReelItemState extends State<ShortReelItem>
   Widget _buildSpeedBadge() {
     return Positioned(
       top: MediaQuery.paddingOf(context).top + 50,
-      left: 0,
-      right: 0,
+      left: 0, right: 0,
       child: IgnorePointer(
         child: Center(
           child: TweenAnimationBuilder<double>(
@@ -408,7 +419,7 @@ class _ShortReelItemState extends State<ShortReelItem>
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha:0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Row(
@@ -436,6 +447,7 @@ class _ShortReelItemState extends State<ShortReelItem>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Like
         _RailButton(
           onTap: widget.onLike,
           child: Column(
@@ -450,11 +462,9 @@ class _ShortReelItemState extends State<ShortReelItem>
                 child: widget.likeLoading
                     ? const SizedBox(
                         key: ValueKey('loading'),
-                        width: 24,
-                        height: 24,
+                        width: 24, height: 24,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
-                      )
+                            color: Colors.white, strokeWidth: 2))
                     : Icon(
                         key: ValueKey(s.likedByMe),
                         s.likedByMe
@@ -463,60 +473,104 @@ class _ShortReelItemState extends State<ShortReelItem>
                         color: s.likedByMe ? Colors.red : Colors.white,
                         size: 28,
                         shadows: const [
-                          Shadow(color: Colors.black54, blurRadius: 6),
+                          Shadow(color: Colors.black54, blurRadius: 6)
                         ],
                       ),
               ),
               if (s.likeCount > 0) ...[
                 const SizedBox(height: 3),
-                Text(
-                  _fmtCount(s.likeCount),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
-                  ),
-                ),
+                Text(_fmtCount(s.likeCount),
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        shadows: [
+                          Shadow(color: Colors.black54, blurRadius: 3)
+                        ])),
               ],
             ],
           ),
         ),
         const SizedBox(height: 18),
+
+        // Views
         if (s.viewCount > 0)
           Padding(
             padding: const EdgeInsets.only(bottom: 18),
             child: Column(
               children: [
-                const Icon(
-                  Icons.remove_red_eye_outlined,
-                  color: Colors.white,
-                  size: 22,
-                  shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
-                ),
+                const Icon(Icons.remove_red_eye_outlined,
+                    color: Colors.white, size: 22,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 6)]),
                 const SizedBox(height: 3),
-                Text(
-                  _fmtCount(s.viewCount),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
-                  ),
-                ),
+                Text(_fmtCount(s.viewCount),
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        shadows: [
+                          Shadow(color: Colors.black54, blurRadius: 3)
+                        ])),
               ],
             ),
           ),
+
+        // Mute/unmute
         _RailButton(
-          onTap: _onShare,
-          child: const Icon(
-            Icons.share_rounded,
-            color: Colors.white,
-            size: 24,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+          onTap: _toggleMute,
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+              color: Colors.white, size: 18,
+            ),
           ),
         ),
+        const SizedBox(height: 18),
+
+        // Spinning disc (content thumbnail)
+        if (s.contentThumbnail.isNotEmpty)
+          _buildSpinningDisc(s),
       ],
+    );
+  }
+
+  Widget _buildSpinningDisc(ShortEntity s) {
+    return GestureDetector(
+      onTap: widget.onOpenDetail,
+      child: AnimatedBuilder(
+        animation: _discAnim,
+        builder: (_, child) => Transform.rotate(
+          angle: _discAnim.value * 6.283,
+          child: child,
+        ),
+        child: Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white30, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: Image.network(
+              s.contentThumbnail,
+              fit: BoxFit.cover,
+              errorBuilder: (_, e, st) => Container(
+                color: Colors.white12,
+                child: const Icon(Icons.music_note_rounded,
+                    color: Colors.white54, size: 18),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -535,18 +589,31 @@ class _ShortReelItemState extends State<ShortReelItem>
               if (s.provider.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    s.provider,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha:0.85),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      shadows: const [
-                        Shadow(color: Colors.black87, blurRadius: 4),
-                      ],
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          s.provider,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            shadows: [
+                              Shadow(color: Colors.black87, blurRadius: 4)
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               if (s.title.isNotEmpty)
@@ -561,7 +628,9 @@ class _ShortReelItemState extends State<ShortReelItem>
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
-                      shadows: [Shadow(color: Colors.black87, blurRadius: 6)],
+                      shadows: [
+                        Shadow(color: Colors.black87, blurRadius: 6)
+                      ],
                     ),
                   ),
                 ),
@@ -577,7 +646,8 @@ class _ShortReelItemState extends State<ShortReelItem>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha:0.1),
+                                  color:
+                                      Colors.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -596,7 +666,8 @@ class _ShortReelItemState extends State<ShortReelItem>
             ],
           ),
         ),
-        if (s.contentTitle.isNotEmpty) _buildPillButton(s),
+        if (s.contentUrl.trim().isNotEmpty || s.contentTitle.isNotEmpty)
+          _buildPillButton(s),
         const SizedBox(height: 10),
         _buildSeekSection(),
       ],
@@ -608,11 +679,11 @@ class _ShortReelItemState extends State<ShortReelItem>
       child: GestureDetector(
         onTap: widget.onOpenDetail,
         child: Container(
-          height: 42,
-          margin: const EdgeInsets.symmetric(horizontal: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 44,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.only(left: 4, right: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(21),
+            borderRadius: BorderRadius.circular(22),
             gradient: const LinearGradient(
               colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
               begin: Alignment.topLeft,
@@ -620,56 +691,75 @@ class _ShortReelItemState extends State<ShortReelItem>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.red.withValues(alpha:0.35),
-                blurRadius: 12,
+                color: Colors.red.withValues(alpha: 0.3),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Row(
             children: [
-              if (s.contentThumbnail.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    s.contentThumbnail,
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, e, s) => const Icon(
-                        Icons.movie_rounded,
-                        color: Colors.white70,
-                        size: 20),
-                  ),
-                )
-              else
-                const Icon(Icons.movie_rounded,
-                    color: Colors.white70, size: 20),
-              const SizedBox(width: 8),
+              Container(
+                width: 36, height: 36,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.black.withValues(alpha: 0.2),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: s.contentThumbnail.isNotEmpty
+                    ? Image.network(
+                        s.contentThumbnail,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, e, st) => const Center(
+                          child: Icon(Icons.movie_rounded,
+                              color: Colors.white70, size: 20),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.movie_rounded,
+                            color: Colors.white70, size: 20),
+                      ),
+              ),
               Expanded(
-                child: Text(
-                  s.contentTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (s.contentTitle.isNotEmpty)
+                      Text(
+                        s.contentTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                      ),
+                    const Text(
+                      'Watch Full Movie',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              const Text(
-                'Watch',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 4),
+              Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.play_arrow_rounded,
+                    color: Colors.white, size: 18),
               ),
-              const SizedBox(width: 2),
-              const Icon(Icons.chevron_right_rounded,
-                  color: Colors.white70, size: 16),
             ],
           ),
         ),
@@ -752,8 +842,7 @@ class _BufferingSpinner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      width: 36,
-      height: 36,
+      width: 36, height: 36,
       child:
           CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5),
     );

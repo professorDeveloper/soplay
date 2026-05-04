@@ -23,18 +23,30 @@ class ShortModel extends ShortEntity {
         ? rawTags.whereType<String>().toList()
         : const <String>[];
 
+    final content = json['content'];
+    final contentMap = content is Map ? content : const {};
+
     return ShortModel(
-      id: _str(json['_id']),
+      id: _str(json['_id'] ?? json['id']),
       title: _str(json['title']),
       videoUrl: _str(json['videoUrl']),
-      thumbnail: _str(json['thumbnailUrl']),
+      thumbnail: _str(json['thumbnailUrl'] ?? json['thumbnail']),
       provider: _str(json['provider']),
-      contentUrl: _str(json['contentUrl']),
-      contentTitle: _str(json['contentTitle']),
-      contentThumbnail: _str(json['contentThumbnail']),
-      viewCount: _int(json['views']),
-      likeCount: _int(json['likeCount']),
-      likedByMe: _bool(json['likedByMe']),
+      contentUrl: _str(
+        json['contentUrl'] ??
+            json['contentURL'] ??
+            json['movieUrl'] ??
+            json['detailUrl'] ??
+            contentMap['contentUrl'] ??
+            contentMap['url'],
+      ),
+      contentTitle: _str(json['contentTitle'] ?? contentMap['title']),
+      contentThumbnail: _str(
+        json['contentThumbnail'] ?? contentMap['thumbnail'],
+      ),
+      viewCount: _int(json['views'] ?? json['viewCount']),
+      likeCount: _int(json['likeCount'] ?? json['likes']),
+      likedByMe: _bool(json['likedByMe'] ?? json['isLiked']),
       tags: tags,
       createdAt: _str(json['createdAt']),
     );
