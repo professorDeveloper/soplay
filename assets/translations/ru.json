@@ -1,5 +1,6 @@
-{
-  "app_name": "Sozo",  "general": {
+﻿{
+  "app_name": "Soplay",
+  "general": {
     "loading": "Загрузка...",
     "error": "Что-то пошло не так",
     "retry": "Повторить",
@@ -170,6 +171,7 @@
   "navigation": {
     "home": "Главная",
     "search": "Поиск",
+    "shorts": "Shorts",
     "downloads": "Загрузки",
     "profile": "Профиль",
     "my_list": "Мой список"

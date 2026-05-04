@@ -12,6 +12,9 @@ import 'package:soplay/features/detail/domain/entities/playback_entity.dart';
 import 'package:soplay/features/detail/domain/entities/player_args.dart';
 import 'package:soplay/features/detail/presentation/blocs/detail_bloc/detail_bloc.dart';
 import 'package:soplay/features/detail/presentation/blocs/episodes_bloc/episodes_bloc.dart';
+import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_bloc.dart';
+import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_event.dart';
+import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_state.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_cast_tab.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_comments_tab.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_hero.dart';
@@ -29,10 +32,13 @@ class DetailPage extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) =>
-              getIt<DetailBloc>()..add(DetailLoad(args.contentUrl)),
+          create: (_) => getIt<DetailBloc>()..add(DetailLoad(args.contentUrl)),
         ),
         BlocProvider(create: (_) => getIt<EpisodesBloc>()),
+        BlocProvider(
+          create: (_) =>
+              getIt<FavoriteBloc>()..add(FavoriteLoad(args.contentUrl)),
+        ),
       ],
       child: _DetailScaffold(contentUrl: args.contentUrl),
     );
@@ -53,18 +59,31 @@ class _DetailScaffold extends StatelessWidget {
           builder: (context, state) {
             return switch (state) {
               DetailInitial() || DetailLoading() => Stack(
-                  children: [
-                    const DetailSkeleton(),
-                    _BackOnlyBar(onBack: () => _goBack(context)),
-                  ],
+                children: [
+                  const DetailSkeleton(),
+                  _BackOnlyBar(onBack: () => _goBack(context)),
+                ],
+              ),
+              DetailLoaded(:final detail) =>
+                BlocBuilder<FavoriteBloc, FavoriteState>(
+                  builder: (context, favoriteState) {
+                    if (favoriteState is FavoriteInitial) {
+                      return Stack(
+                        children: [
+                          const DetailSkeleton(),
+                          _BackOnlyBar(onBack: () => _goBack(context)),
+                        ],
+                      );
+                    }
+                    return _DetailView(detail: detail);
+                  },
                 ),
-              DetailLoaded(:final detail) => _DetailView(detail: detail),
               DetailError(:final message) => _ErrorView(
-                  message: message,
-                  onRetry: () =>
-                      context.read<DetailBloc>().add(DetailLoad(contentUrl)),
-                  onBack: () => _goBack(context),
-                ),
+                message: message,
+                onRetry: () =>
+                    context.read<DetailBloc>().add(DetailLoad(contentUrl)),
+                onBack: () => _goBack(context),
+              ),
               _ => const SizedBox.shrink(),
             };
           },
@@ -103,12 +122,12 @@ class _DetailViewState extends State<_DetailView>
   late final bool _hasCast;
   late final bool _hasShots;
   double _collapseRange = 1;
-  bool _isInList = false;
 
   @override
   void initState() {
     super.initState();
-    _hasCast = widget.detail.cast.isNotEmpty ||
+    _hasCast =
+        widget.detail.cast.isNotEmpty ||
         (widget.detail.director?.trim().isNotEmpty ?? false);
     _hasShots = widget.detail.screenshots.isNotEmpty;
     _tabs = [
@@ -188,17 +207,14 @@ class _DetailViewState extends State<_DetailView>
       key: ValueKey('detail-tab-$tab'),
       child: switch (tab) {
         'Similar' => DetailRelatedSection(related: detail.related),
-        'Cast' => DetailCastTab(
-            cast: detail.cast,
-            director: detail.director,
-          ),
+        'Cast' => DetailCastTab(cast: detail.cast, director: detail.director),
         'Comments' => DetailCommentsTab(
-            provider: detail.provider,
-            contentUrl: detail.contentUrl,
-          ),
+          provider: detail.provider,
+          contentUrl: detail.contentUrl,
+        ),
         'Screenshots' => DetailScreenshotsSection(
-            screenshots: detail.screenshots,
-          ),
+          screenshots: detail.screenshots,
+        ),
         _ => const SizedBox.shrink(),
       },
     );
@@ -230,8 +246,14 @@ class _DetailViewState extends State<_DetailView>
   }
 
   void _toggleMyList() {
-    setState(() => _isInList = !_isInList);
-    _showSnack(_isInList ? 'Added to My List' : 'Removed from My List');
+    context.read<FavoriteBloc>().add(
+      FavoriteToggle(
+        contentUrl: widget.detail.contentUrl,
+        provider: widget.detail.provider,
+        title: widget.detail.title,
+        thumbnail: widget.detail.thumbnail ?? '',
+      ),
+    );
   }
 
   void _onShare() => _showSnack('Share link copied');
@@ -308,17 +330,36 @@ class _DetailViewState extends State<_DetailView>
 
     final detail = widget.detail;
 
-    return BlocListener<EpisodesBloc, EpisodesState>(
-      listenWhen: (prev, curr) => prev.runtimeType != curr.runtimeType,
-      listener: (context, state) {
-        if (state is EpisodesLoaded) {
-          _handlePlayback(state.playback);
-          context.read<EpisodesBloc>().add(const EpisodesReset());
-        } else if (state is EpisodesError) {
-          _showSnack(state.message);
-          context.read<EpisodesBloc>().add(const EpisodesReset());
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<EpisodesBloc, EpisodesState>(
+          listenWhen: (prev, curr) => prev.runtimeType != curr.runtimeType,
+          listener: (context, state) {
+            if (state is EpisodesLoaded) {
+              _handlePlayback(state.playback);
+              context.read<EpisodesBloc>().add(const EpisodesReset());
+            } else if (state is EpisodesError) {
+              _showSnack(state.message);
+              context.read<EpisodesBloc>().add(const EpisodesReset());
+            }
+          },
+        ),
+        BlocListener<FavoriteBloc, FavoriteState>(
+          listenWhen: (prev, curr) {
+            if (prev is FavoriteReady && curr is FavoriteReady) {
+              return prev.isInList != curr.isInList && !curr.isLoading;
+            }
+            return false;
+          },
+          listener: (context, state) {
+            if (state is FavoriteReady) {
+              _showSnack(
+                state.isInList ? 'Added to My List' : 'Removed from My List',
+              );
+            }
+          },
+        ),
+      ],
       child: Stack(
         children: [
           CustomScrollView(
@@ -369,10 +410,8 @@ class _DetailViewState extends State<_DetailView>
                     labelColor: AppColors.textPrimary,
                     unselectedLabelColor: AppColors.textHint,
                     dividerColor: Colors.transparent,
-                    overlayColor:
-                        WidgetStateProperty.all(Colors.transparent),
-                    labelPadding:
-                        const EdgeInsets.symmetric(horizontal: 14),
+                    overlayColor: WidgetStateProperty.all(Colors.transparent),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 14),
                     padding: EdgeInsets.zero,
                     labelStyle: const TextStyle(
                       fontSize: 13,
@@ -401,13 +440,14 @@ class _DetailViewState extends State<_DetailView>
                     onHorizontalDragEnd: _onSwipeEnd,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        minHeight: (MediaQuery.sizeOf(context).height -
-                                topPad -
-                                toolbarHeight -
-                                kTextTabBarHeight -
-                                MediaQuery.paddingOf(context).bottom -
-                                36)
-                            .clamp(0.0, double.infinity),
+                        minHeight:
+                            (MediaQuery.sizeOf(context).height -
+                                    topPad -
+                                    toolbarHeight -
+                                    kTextTabBarHeight -
+                                    MediaQuery.paddingOf(context).bottom -
+                                    36)
+                                .clamp(0.0, double.infinity),
                       ),
                       child: _buildTabContent(detail),
                     ),
@@ -420,27 +460,43 @@ class _DetailViewState extends State<_DetailView>
             top: 0,
             left: 0,
             right: 0,
-            child: ValueListenableBuilder<double>(
-              valueListenable: _collapse,
-              builder: (_, c, _) => ValueListenableBuilder<bool>(
-                valueListenable: _showPill,
-                builder: (_, showPill, _) =>
-                    BlocBuilder<EpisodesBloc, EpisodesState>(
-                  buildWhen: (a, b) =>
-                      (a is EpisodesLoading) != (b is EpisodesLoading),
-                  builder: (context, state) => _AnimatedTopBar(
-                    collapse: c,
-                    showPill: showPill,
-                    title: detail.title,
-                    isInList: _isInList,
-                    isLoading: state is EpisodesLoading,
-                    onBack: _goBack,
-                    onPrimaryAction: _onPrimaryAction,
-                    onAddToList: _toggleMyList,
-                    onShare: _onShare,
+            child: BlocBuilder<FavoriteBloc, FavoriteState>(
+              buildWhen: (a, b) {
+                if (a is FavoriteReady && b is FavoriteReady) {
+                  return a.isInList != b.isInList;
+                }
+                return a.runtimeType != b.runtimeType;
+              },
+              builder: (context, favState) {
+                final isInList = favState is FavoriteReady && favState.isInList;
+                final showListAction = favState is FavoriteReady;
+                final listActionLoading =
+                    favState is FavoriteReady && favState.isLoading;
+                return ValueListenableBuilder<double>(
+                  valueListenable: _collapse,
+                  builder: (_, c, _) => ValueListenableBuilder<bool>(
+                    valueListenable: _showPill,
+                    builder: (_, showPill, _) =>
+                        BlocBuilder<EpisodesBloc, EpisodesState>(
+                          buildWhen: (a, b) =>
+                              (a is EpisodesLoading) != (b is EpisodesLoading),
+                          builder: (context, state) => _AnimatedTopBar(
+                            collapse: c,
+                            showPill: showPill,
+                            title: detail.title,
+                            isInList: isInList,
+                            isLoading: state is EpisodesLoading,
+                            showListAction: showListAction,
+                            isListActionLoading: listActionLoading,
+                            onBack: _goBack,
+                            onPrimaryAction: _onPrimaryAction,
+                            onAddToList: _toggleMyList,
+                            onShare: _onShare,
+                          ),
+                        ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
           BlocBuilder<EpisodesBloc, EpisodesState>(
@@ -487,6 +543,8 @@ class _AnimatedTopBar extends StatelessWidget {
     required this.title,
     required this.isInList,
     required this.isLoading,
+    required this.showListAction,
+    required this.isListActionLoading,
     required this.onBack,
     required this.onPrimaryAction,
     required this.onAddToList,
@@ -498,6 +556,8 @@ class _AnimatedTopBar extends StatelessWidget {
   final String title;
   final bool isInList;
   final bool isLoading;
+  final bool showListAction;
+  final bool isListActionLoading;
   final VoidCallback onBack;
   final VoidCallback onPrimaryAction;
   final VoidCallback onAddToList;
@@ -578,11 +638,17 @@ class _AnimatedTopBar extends StatelessWidget {
                         )
                       : const SizedBox(key: ValueKey('no-pill'), width: 0),
                 ),
-                _CircleIconButton(
-                  icon: isInList ? Icons.check_rounded : Icons.add_rounded,
-                  onTap: onAddToList,
-                ),
-                const SizedBox(width: 8),
+                if (showListAction) ...[
+                  _CircleIconButton(
+                    icon: isListActionLoading
+                        ? Icons.more_horiz_rounded
+                        : isInList
+                        ? Icons.check_rounded
+                        : Icons.add_rounded,
+                    onTap: isListActionLoading ? null : onAddToList,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 _CircleIconButton(
                   icon: Icons.ios_share_rounded,
                   onTap: onShare,
@@ -599,7 +665,7 @@ class _AnimatedTopBar extends StatelessWidget {
 class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({required this.icon, required this.onTap});
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

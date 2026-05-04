@@ -1,5 +1,6 @@
-{
-  "app_name": "Sozo",  "general": {
+﻿{
+  "app_name": "Soplay",
+  "general": {
     "loading": "Yuklanmoqda...",
     "error": "Xatolik yuz berdi",
     "retry": "Qayta urinish",
@@ -170,6 +171,7 @@
   "navigation": {
     "home": "Asosiy",
     "search": "Qidirish",
+    "shorts": "Shorts",
     "downloads": "Yuklamalar",
     "profile": "Profil",
     "my_list": "Ro'yxat"

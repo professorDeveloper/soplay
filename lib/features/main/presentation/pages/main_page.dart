@@ -15,6 +15,7 @@ import 'package:soplay/features/profile/presentation/bloc/provider_bloc.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_state.dart';
 import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 import 'package:soplay/features/search/presentation/pages/search_page.dart';
+import 'package:soplay/features/shorts/presentation/pages/shorts_page.dart';
 
 import '../../../../core/navigation/nav_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
@@ -34,6 +35,7 @@ class _MainPageState extends State<MainPage> {
   static const _tabs = <Widget>[
     HomePage(),
     SearchPage(),
+    ShortsPage(),
     MyListPage(),
     ProfilePage(),
   ];
@@ -116,6 +118,11 @@ class _SoplayBottomNav extends StatelessWidget {
       icon: CupertinoIcons.search,
       activeIcon: CupertinoIcons.search,
       labelKey: 'navigation.search',
+    ),
+    _NavItem(
+      icon: CupertinoIcons.play_rectangle,
+      activeIcon: CupertinoIcons.play_rectangle_fill,
+      labelKey: 'navigation.shorts',
     ),
     _NavItem(
       icon: CupertinoIcons.bookmark,

@@ -38,6 +38,21 @@ import 'package:soplay/features/search/data/repositories/search_repository_imp.d
 import 'package:soplay/features/search/domain/repositories/search_repository.dart';
 import 'package:soplay/features/search/domain/usecases/genre_usecase.dart';
 import 'package:soplay/features/search/domain/usecases/search_usecase.dart';
+import 'package:soplay/features/shorts/data/datasources/shorts_remote_data_source.dart';
+import 'package:soplay/features/shorts/data/repositories/shorts_repository_impl.dart';
+import 'package:soplay/features/shorts/domain/repositories/shorts_repository.dart';
+import 'package:soplay/features/shorts/domain/usecases/get_short_usecase.dart';
+import 'package:soplay/features/shorts/domain/usecases/get_shorts_usecase.dart';
+import 'package:soplay/features/shorts/domain/usecases/increase_short_view_usecase.dart';
+import 'package:soplay/features/shorts/domain/usecases/toggle_short_like_usecase.dart';
+import 'package:soplay/features/shorts/presentation/bloc/shorts_bloc.dart';
+import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_bloc.dart';
+import 'package:soplay/features/my_list/data/datasources/my_list_remote_data_source.dart';
+import 'package:soplay/features/my_list/data/repositories/my_list_repository_impl.dart';
+import 'package:soplay/features/my_list/domain/repositories/my_list_repository.dart';
+import 'package:soplay/features/my_list/domain/usecases/add_favorite_usecase.dart';
+import 'package:soplay/features/my_list/domain/usecases/get_favorites_usecase.dart';
+import 'package:soplay/features/my_list/domain/usecases/remove_favorite_usecase.dart';
 import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
@@ -53,9 +68,7 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<HiveService>(HiveService());
 
   final dio = DioClient.instance;
-  dio.interceptors.add(
-    ProviderInterceptor(hiveService: getIt<HiveService>()),
-  );
+  dio.interceptors.add(ProviderInterceptor(hiveService: getIt<HiveService>()));
   dio.interceptors.add(LoggingInterceptor());
   dio.interceptors.add(
     AuthInterceptor(
@@ -63,20 +76,20 @@ Future<void> configureDependencies() async {
       dio: dio,
       onSessionExpired: () {
         if (getIt.isRegistered<AuthBloc>()) {
-          getIt<AuthBloc>().add( AuthSessionExpired());
+          getIt<AuthBloc>().add(AuthSessionExpired());
         }
       },
     ),
   );
   getIt.registerSingleton<Dio>(dio);
 
-
-
   getIt.registerSingleton<AuthRemoteDataSource>(
     AuthRemoteDataSource(dio: getIt<Dio>()),
   );
   getIt.registerSingleton<HomeDataSource>(HomeDataSource(dio: getIt<Dio>()));
-  getIt.registerSingleton<DetailDataSource>(DetailDataSource(dio: getIt<Dio>()));
+  getIt.registerSingleton<DetailDataSource>(
+    DetailDataSource(dio: getIt<Dio>()),
+  );
   getIt.registerSingleton<SearchDataSource>(
     SearchDataSource(dio: getIt<Dio>()),
   );
@@ -99,11 +112,45 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<CommentsDataSource>(
     CommentsDataSource(dio: getIt<Dio>()),
   );
+  getIt.registerSingleton<ShortsRemoteDataSource>(
+    ShortsRemoteDataSource(dio: getIt<Dio>()),
+  );
   getIt.registerSingleton<CommentsRepository>(
     CommentsRepositoryImpl(getIt<CommentsDataSource>()),
   );
   getIt.registerSingleton<ProviderRepository>(
     ProviderRepositoryImpl(getIt<ProviderDataSource>()),
+  );
+  getIt.registerSingleton<ShortsRepository>(
+    ShortsRepositoryImpl(getIt<ShortsRemoteDataSource>()),
+  );
+
+  getIt.registerSingleton<MyListRemoteDataSource>(
+    MyListRemoteDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<MyListRepository>(
+    MyListRepositoryImpl(getIt<MyListRemoteDataSource>()),
+  );
+  getIt.registerSingleton<GetFavoritesUseCase>(
+    GetFavoritesUseCase(getIt<MyListRepository>()),
+  );
+  getIt.registerSingleton<AddFavoriteUseCase>(
+    AddFavoriteUseCase(getIt<MyListRepository>()),
+  );
+  getIt.registerSingleton<RemoveFavoriteUseCase>(
+    RemoveFavoriteUseCase(getIt<MyListRepository>()),
+  );
+  getIt.registerSingleton<GetShortsUseCase>(
+    GetShortsUseCase(getIt<ShortsRepository>()),
+  );
+  getIt.registerSingleton<GetShortUseCase>(
+    GetShortUseCase(getIt<ShortsRepository>()),
+  );
+  getIt.registerSingleton<IncreaseShortViewUseCase>(
+    IncreaseShortViewUseCase(getIt<ShortsRepository>()),
+  );
+  getIt.registerSingleton<ToggleShortLikeUseCase>(
+    ToggleShortLikeUseCase(getIt<ShortsRepository>()),
   );
 
   getIt.registerSingleton<GetDetailUseCase>(
@@ -151,6 +198,14 @@ Future<void> configureDependencies() async {
   );
   getIt.registerFactory(() => DetailBloc(useCase: getIt<GetDetailUseCase>()));
   getIt.registerFactory(
+    () => FavoriteBloc(
+      getFavorites: getIt<GetFavoritesUseCase>(),
+      addFavorite: getIt<AddFavoriteUseCase>(),
+      removeFavorite: getIt<RemoveFavoriteUseCase>(),
+      hiveService: getIt<HiveService>(),
+    ),
+  );
+  getIt.registerFactory(
     () => EpisodesBloc(useCase: getIt<GetEpisodesUseCase>()),
   );
   getIt.registerFactory(() => ViewAllBloc(useCase: getIt<ViewAllUseCase>()));
@@ -159,6 +214,14 @@ Future<void> configureDependencies() async {
     () => SearchBloc(
       searchUseCase: getIt<SearchUseCase>(),
       genreUseCase: getIt<GenreUseCase>(),
+    ),
+  );
+  getIt.registerFactory(
+    () => ShortsBloc(
+      getShorts: getIt<GetShortsUseCase>(),
+      increaseView: getIt<IncreaseShortViewUseCase>(),
+      toggleLike: getIt<ToggleShortLikeUseCase>(),
+      hiveService: getIt<HiveService>(),
     ),
   );
   getIt.registerFactory(

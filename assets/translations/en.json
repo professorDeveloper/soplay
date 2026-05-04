@@ -1,5 +1,5 @@
-{
-  "app_name": "Sozo",
+﻿{
+  "app_name": "Soplay",
   "general": {
     "loading": "Loading...",
     "error": "Something went wrong",
@@ -171,6 +171,7 @@
   "navigation": {
     "home": "Home",
     "search": "Search",
+    "shorts": "Shorts",
     "downloads": "Downloads",
     "profile": "Profile",
     "my_list": "My List"
