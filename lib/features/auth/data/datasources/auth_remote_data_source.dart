@@ -7,24 +7,40 @@ class AuthRemoteDataSource {
 
   const AuthRemoteDataSource({required this.dio});
 
-  Future<AuthModel> login(String email, String password) async {
+  Future<AuthModel> login(String identifier, String password) async {
     final response = await dio.post(
       '/auth/login',
-      data: {'email': email, 'password': password},
+      data: {'identifier': identifier, 'password': password},
     );
     return AuthModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<AuthModel> register(
-    String email,
-    String password,
-    String username,
-  ) async {
-    final response = await dio.post(
+  Future<void> requestRegisterOtp({
+    required String email,
+    required String username,
+    required String password,
+  }) async {
+    await dio.post(
       '/auth/register',
-      data: {'email': email, 'password': password, 'username': username},
+      data: {'email': email, 'username': username, 'password': password},
     );
+  }
 
+  Future<void> resendRegisterOtp(String email) async {
+    await dio.post(
+      '/auth/register/resend',
+      data: {'email': email},
+    );
+  }
+
+  Future<AuthModel> verifyRegisterOtp({
+    required String email,
+    required String code,
+  }) async {
+    final response = await dio.post(
+      '/auth/register/verify',
+      data: {'email': email, 'code': code},
+    );
     return AuthModel.fromJson(response.data as Map<String, dynamic>);
   }
 

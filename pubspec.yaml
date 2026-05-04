@@ -66,6 +66,7 @@ dependencies:
   palette_generator: ^0.3.3+5
   video_player: ^2.9.5
   wakelock_plus: ^1.2.10
+  floating: ^6.0.0
 
 dev_dependencies:
   flutter_test:

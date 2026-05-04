@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
@@ -303,16 +304,16 @@ class ViewAllErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.06),
                 ),
@@ -320,25 +321,37 @@ class ViewAllErrorView extends StatelessWidget {
               child: const Icon(
                 Icons.wifi_off_rounded,
                 color: AppColors.textSecondary,
-                size: 28,
+                size: 32,
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Xatolik yuz berdi',
-              style: TextStyle(
+            const SizedBox(height: 18),
+            Text(
+              'errors.network'.tr(),
+              style: const TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
+                height: 1.25,
               ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            Text(
+              'general.try_again'.tr(),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.35,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
             SizedBox(
-              width: 140,
-              height: 42,
+              width: 156,
+              height: 44,
               child: ElevatedButton(
                 onPressed: onRetry,
-                child: const Text('Qayta urinish'),
+                child: Text('general.retry'.tr()),
               ),
             ),
           ],

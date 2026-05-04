@@ -1,5 +1,4 @@
 import '../../../../core/error/result.dart';
-import '../entities/auth_token.dart';
 import '../repositories/auth_repository.dart';
 
 class RegisterUseCase {
@@ -7,11 +6,15 @@ class RegisterUseCase {
 
   RegisterUseCase(this._authRepository);
 
-  Future<Result<AuthToken>> call(
-    String email,
-    String password,
-    String username,
-  ) async {
-    return await _authRepository.register(email, password, username);
+  Future<Result<void>> call({
+    required String email,
+    required String username,
+    required String password,
+  }) {
+    return _authRepository.requestRegisterOtp(
+      email: email,
+      username: username,
+      password: password,
+    );
   }
 }

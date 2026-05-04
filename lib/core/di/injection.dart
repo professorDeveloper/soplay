@@ -2,9 +2,17 @@ import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:soplay/core/network/auth_interceptor.dart';
 import 'package:soplay/core/network/dio_client.dart';
+import 'package:soplay/core/network/logging_interceptor.dart';
+import 'package:soplay/core/network/provider_interceptor.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
+import 'package:soplay/features/auth/domain/usecases/resend_otp_usecase.dart';
+import 'package:soplay/features/auth/domain/usecases/verify_otp_usecase.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:soplay/features/comments/data/datasources/comments_data_source.dart';
+import 'package:soplay/features/comments/data/repositories/comments_repository_impl.dart';
+import 'package:soplay/features/comments/domain/repositories/comments_repository.dart';
+import 'package:soplay/features/comments/presentation/blocs/comments_bloc/comments_bloc.dart';
 import 'package:soplay/features/detail/data/datasources/detail_data_source.dart';
 import 'package:soplay/features/detail/data/repositories/detail_repository_impl.dart';
 import 'package:soplay/features/detail/domain/repositories/detail_repository.dart';
@@ -45,6 +53,10 @@ Future<void> configureDependencies() async {
 
   final dio = DioClient.instance;
   dio.interceptors.add(
+    ProviderInterceptor(hiveService: getIt<HiveService>()),
+  );
+  dio.interceptors.add(LoggingInterceptor());
+  dio.interceptors.add(
     AuthInterceptor(hiveService: getIt<HiveService>(), dio: dio),
   );
   getIt.registerSingleton<Dio>(dio);
@@ -75,6 +87,12 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<ProviderDataSource>(
     ProviderDataSource(dio: getIt<Dio>()),
   );
+  getIt.registerSingleton<CommentsDataSource>(
+    CommentsDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<CommentsRepository>(
+    CommentsRepositoryImpl(getIt<CommentsDataSource>()),
+  );
   getIt.registerSingleton<ProviderRepository>(
     ProviderRepositoryImpl(getIt<ProviderDataSource>()),
   );
@@ -95,6 +113,12 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<RegisterUseCase>(
     RegisterUseCase(getIt<AuthRepository>()),
   );
+  getIt.registerSingleton<VerifyOtpUseCase>(
+    VerifyOtpUseCase(getIt<AuthRepository>()),
+  );
+  getIt.registerSingleton<ResendOtpUseCase>(
+    ResendOtpUseCase(getIt<AuthRepository>()),
+  );
   getIt.registerSingleton<HomeUseCase>(HomeUseCase(getIt<HomeRepository>()));
   getIt.registerSingleton<SearchUseCase>(
     SearchUseCase(repository: getIt<SearchRepository>()),
@@ -110,6 +134,8 @@ Future<void> configureDependencies() async {
     () => AuthBloc(
       loginUseCase: getIt<LoginUseCase>(),
       registerUseCase: getIt<RegisterUseCase>(),
+      verifyOtpUseCase: getIt<VerifyOtpUseCase>(),
+      resendOtpUseCase: getIt<ResendOtpUseCase>(),
       authRepository: getIt<AuthRepository>(),
       hiveService: getIt<HiveService>(),
     ),
@@ -129,6 +155,12 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(
     () => ProviderBloc(
       useCase: getIt<GetProvidersUseCase>(),
+      hiveService: getIt<HiveService>(),
+    ),
+  );
+  getIt.registerFactory(
+    () => CommentsBloc(
+      repository: getIt<CommentsRepository>(),
       hiveService: getIt<HiveService>(),
     ),
   );

@@ -56,6 +56,8 @@ class _RegisterPageState extends State<RegisterPage> {
         listener: (context, state) {
           if (state is AuthLoaded) {
             context.go('/main');
+          } else if (state is AuthOtpPending) {
+            context.pushReplacement('/otp', extra: state.email);
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

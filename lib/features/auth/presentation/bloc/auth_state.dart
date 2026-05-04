@@ -32,3 +32,50 @@ class AuthLoaded extends AuthState {
     token.user,
   ];
 }
+
+/// Register OTP yuborildi — verify page'ga o'tish kerak.
+class AuthOtpPending extends AuthState {
+  final String email;
+  final DateTime cooldownUntil;
+  final bool justResent;
+  final bool verifying;
+  final bool resending;
+  final String? error;
+
+  AuthOtpPending({
+    required this.email,
+    required this.cooldownUntil,
+    this.justResent = false,
+    this.verifying = false,
+    this.resending = false,
+    this.error,
+  });
+
+  AuthOtpPending copyWith({
+    DateTime? cooldownUntil,
+    bool? justResent,
+    bool? verifying,
+    bool? resending,
+    String? error,
+    bool clearError = false,
+  }) {
+    return AuthOtpPending(
+      email: email,
+      cooldownUntil: cooldownUntil ?? this.cooldownUntil,
+      justResent: justResent ?? this.justResent,
+      verifying: verifying ?? this.verifying,
+      resending: resending ?? this.resending,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    email,
+    cooldownUntil,
+    justResent,
+    verifying,
+    resending,
+    error,
+  ];
+}

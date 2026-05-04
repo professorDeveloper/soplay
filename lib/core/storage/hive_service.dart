@@ -68,7 +68,7 @@ class HiveService {
   String getCurrentProvider() {
     return _settingsBox.get(
       AppConstants.currentProviderKey,
-      defaultValue: AppConstants.defaultProviderId,
+      defaultValue: '',
     );
   }
 
@@ -82,5 +82,16 @@ class HiveService {
 
   Future<void> saveLanguage(String langCode) async {
     await _settingsBox.put(AppConstants.languageKey, langCode);
+  }
+
+  String getPreferredMediaLang() {
+    return _settingsBox.get(
+      AppConstants.preferredMediaLangKey,
+      defaultValue: AppConstants.defaultMediaLang,
+    );
+  }
+
+  Future<void> savePreferredMediaLang(String lang) async {
+    await _settingsBox.put(AppConstants.preferredMediaLangKey, lang);
   }
 }

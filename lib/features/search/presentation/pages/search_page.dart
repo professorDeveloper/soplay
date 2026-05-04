@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/search/domain/entities/genre_entity.dart';
 import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
@@ -12,12 +11,7 @@ class SearchPage extends StatelessWidget {
   const SearchPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<SearchBloc>()..add(const SearchLoad()),
-      child: const _SearchView(),
-    );
-  }
+  Widget build(BuildContext context) => const _SearchView();
 }
 
 class _SearchView extends StatefulWidget {
@@ -42,6 +36,10 @@ class _SearchViewState extends State<_SearchView> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    final bloc = context.read<SearchBloc>();
+    if (bloc.state is SearchInitial) {
+      bloc.add(const SearchLoad());
+    }
   }
 
   @override

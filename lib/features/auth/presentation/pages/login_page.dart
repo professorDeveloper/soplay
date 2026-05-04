@@ -16,13 +16,13 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -31,7 +31,7 @@ class _LoginPageState extends State<LoginPage> {
     if (!_formKey.currentState!.validate()) return;
     context.read<AuthBloc>().add(
       AuthLoginRequested(
-        email: _emailController.text.trim(),
+        identifier: _identifierController.text.trim(),
         password: _passwordController.text,
       ),
     );
@@ -88,12 +88,12 @@ class _LoginPageState extends State<LoginPage> {
                         child: Column(
                           children: [
                             _AuthTextField(
-                              controller: _emailController,
-                              hint: 'auth.email_hint'.tr(),
-                              icon: Icons.email_outlined,
+                              controller: _identifierController,
+                              hint: 'Email or username',
+                              icon: Icons.person_outline_rounded,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
-                              validator: _validateEmail,
+                              validator: _validateIdentifier,
                             ),
                             const SizedBox(height: 12),
                             _AuthTextField(
@@ -160,11 +160,15 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  String? _validateEmail(String? value) {
-    final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'auth.email'.tr();
-    if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,}$').hasMatch(email)) {
-      return 'auth.invalid_email'.tr();
+  String? _validateIdentifier(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Email or username required';
+    if (v.contains('@')) {
+      if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,}$').hasMatch(v)) {
+        return 'auth.invalid_email'.tr();
+      }
+    } else if (v.length < 3) {
+      return 'auth.invalid_username'.tr();
     }
     return null;
   }

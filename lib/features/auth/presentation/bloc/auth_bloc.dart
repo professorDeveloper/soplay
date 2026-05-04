@@ -5,6 +5,8 @@ import 'package:soplay/features/auth/domain/entities/auth_token.dart';
 import 'package:soplay/features/auth/domain/repositories/auth_repository.dart';
 import 'package:soplay/features/auth/domain/usecases/login_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
+import 'package:soplay/features/auth/domain/usecases/resend_otp_usecase.dart';
+import 'package:soplay/features/auth/domain/usecases/verify_otp_usecase.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_state.dart';
 
 import 'auth_event.dart';
@@ -12,18 +14,27 @@ import 'auth_event.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase loginUseCase;
   final RegisterUseCase registerUseCase;
+  final VerifyOtpUseCase verifyOtpUseCase;
+  final ResendOtpUseCase resendOtpUseCase;
   final AuthRepository authRepository;
   final HiveService hiveService;
+
+  static const Duration _resendCooldown = Duration(seconds: 60);
 
   AuthBloc({
     required this.loginUseCase,
     required this.registerUseCase,
+    required this.verifyOtpUseCase,
+    required this.resendOtpUseCase,
     required this.authRepository,
     required this.hiveService,
   }) : super(AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthLoginRequested>(_onLogin);
     on<AuthRegisterRequested>(_onRegister);
+    on<AuthOtpVerifyRequested>(_onVerifyOtp);
+    on<AuthOtpResendRequested>(_onResendOtp);
+    on<AuthOtpReset>((_, emit) => emit(AuthInitial()));
     on<AuthLogoutRequested>(_onLogout);
     on<AuthProfileRefreshRequested>(_onProfileRefresh);
     add(const AuthStarted());
@@ -55,7 +66,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    final result = await loginUseCase(event.email, event.password);
+    final result = await loginUseCase(event.identifier, event.password);
     switch (result) {
       case Success(:final value):
         emit(AuthLoaded(token: value));
@@ -70,15 +81,84 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     final result = await registerUseCase(
-      event.email,
-      event.password,
-      event.username,
+      email: event.email,
+      username: event.username,
+      password: event.password,
+    );
+    switch (result) {
+      case Success():
+        emit(
+          AuthOtpPending(
+            email: event.email,
+            cooldownUntil: DateTime.now().add(_resendCooldown),
+          ),
+        );
+      case Failure(:final error):
+        emit(AuthError(message: _friendlyError(error)));
+    }
+  }
+
+  Future<void> _onVerifyOtp(
+    AuthOtpVerifyRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    final current = state;
+    if (current is AuthOtpPending) {
+      emit(current.copyWith(verifying: true, clearError: true));
+    }
+    final result = await verifyOtpUseCase(
+      email: event.email,
+      code: event.code,
     );
     switch (result) {
       case Success(:final value):
         emit(AuthLoaded(token: value));
       case Failure(:final error):
-        emit(AuthError(message: _friendlyError(error)));
+        final msg = _friendlyError(error);
+        if (current is AuthOtpPending) {
+          emit(current.copyWith(verifying: false, error: msg));
+        } else {
+          emit(AuthError(message: msg));
+        }
+    }
+  }
+
+  Future<void> _onResendOtp(
+    AuthOtpResendRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    final current = state;
+    if (current is AuthOtpPending) {
+      if (DateTime.now().isBefore(current.cooldownUntil)) return;
+      emit(current.copyWith(resending: true, clearError: true));
+    }
+    final result = await resendOtpUseCase(event.email);
+    switch (result) {
+      case Success():
+        if (current is AuthOtpPending) {
+          emit(
+            current.copyWith(
+              resending: false,
+              justResent: true,
+              cooldownUntil: DateTime.now().add(_resendCooldown),
+            ),
+          );
+        } else {
+          emit(
+            AuthOtpPending(
+              email: event.email,
+              cooldownUntil: DateTime.now().add(_resendCooldown),
+              justResent: true,
+            ),
+          );
+        }
+      case Failure(:final error):
+        final msg = _friendlyError(error);
+        if (current is AuthOtpPending) {
+          emit(current.copyWith(resending: false, error: msg));
+        } else {
+          emit(AuthError(message: msg));
+        }
     }
   }
 

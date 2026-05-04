@@ -1,7 +1,8 @@
 class AppConstants {
   AppConstants._();
 
-  static const String baseUrl = 'https://traffic-flow-summit-connecting.trycloudflare.com/api';
+  static const String baseUrl =
+      'https://post-keep-guide-roommates.trycloudflare.com/api';
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
   static const String productsBox = 'products_box';
@@ -15,6 +16,7 @@ class AppConstants {
   static const String currentProviderKey = 'current_provider';
   static const String aniListTokenKey = 'anilist_token';
   static const String malTokenKey = 'mal_token';
+  static const String preferredMediaLangKey = 'preferred_media_lang';
 
-  static const String defaultProviderId = 'asilmedia';
+  static const String defaultMediaLang = 'sub';
 }

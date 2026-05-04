@@ -14,9 +14,9 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._remoteDataSource, this._hiveService);
 
   @override
-  Future<Result<AuthToken>> login(String email, String password) async {
+  Future<Result<AuthToken>> login(String identifier, String password) async {
     try {
-      final model = await _remoteDataSource.login(email, password);
+      final model = await _remoteDataSource.login(identifier, password);
       if (model.accessToken.isEmpty) {
         return Failure(Exception('Access token topilmadi'));
       }
@@ -27,24 +27,52 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return Success(model);
     } on DioException catch (e) {
-      final message =
-          (e.response?.data as Map?)?['message'] ??
-          e.message ??
-          'Xatolik yuz berdi';
-      return Failure(Exception(message));
+      return Failure(Exception(_messageFrom(e)));
     } catch (e) {
       return Failure(Exception(e.toString()));
     }
   }
 
   @override
-  Future<Result<AuthToken>> register(
-    String email,
-    String password,
-    String username,
-  ) async {
+  Future<Result<void>> requestRegisterOtp({
+    required String email,
+    required String username,
+    required String password,
+  }) async {
     try {
-      final model = await _remoteDataSource.register(email, password, username);
+      await _remoteDataSource.requestRegisterOtp(
+        email: email,
+        username: username,
+        password: password,
+      );
+      return const Success(null);
+    } on DioException catch (e) {
+      return Failure(Exception(_messageFrom(e)));
+    } catch (e) {
+      return Failure(Exception(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> resendRegisterOtp(String email) async {
+    try {
+      await _remoteDataSource.resendRegisterOtp(email);
+      return const Success(null);
+    } on DioException catch (e) {
+      return Failure(Exception(_messageFrom(e)));
+    } catch (e) {
+      return Failure(Exception(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<AuthToken>> verifyRegisterOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final model =
+          await _remoteDataSource.verifyRegisterOtp(email: email, code: code);
       if (model.accessToken.isEmpty) {
         return Failure(Exception('Access token topilmadi'));
       }
@@ -55,11 +83,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return Success(model);
     } on DioException catch (e) {
-      final message =
-          (e.response?.data as Map?)?['message'] ??
-          e.message ??
-          'Xatolik yuz berdi';
-      return Failure(Exception(message));
+      return Failure(Exception(_messageFrom(e)));
     } catch (e) {
       return Failure(Exception(e.toString()));
     }
@@ -72,11 +96,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await _hiveService.saveUser(user);
       return Success(user);
     } on DioException catch (e) {
-      final message =
-          (e.response?.data as Map?)?['message'] ??
-          e.message ??
-          'Xatolik yuz berdi';
-      return Failure(Exception(message));
+      return Failure(Exception(_messageFrom(e)));
     } catch (e) {
       return Failure(Exception(e.toString()));
     }
@@ -91,5 +111,15 @@ class AuthRepositoryImpl implements AuthRepository {
       return;
     }
     await _hiveService.clearAuth();
+  }
+
+  String _messageFrom(DioException e) {
+    final data = e.response?.data;
+    if (data is Map) {
+      final msg = data['message'];
+      if (msg is String && msg.isNotEmpty) return msg;
+      if (msg is List && msg.isNotEmpty) return msg.first.toString();
+    }
+    return e.message ?? 'Xatolik yuz berdi';
   }
 }

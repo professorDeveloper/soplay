@@ -4,10 +4,16 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
+import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/pages/home_page.dart';
 import 'package:soplay/features/my_list/presentation/pages/my_list_page.dart';
+import 'package:soplay/features/profile/presentation/bloc/provider_bloc.dart';
+import 'package:soplay/features/profile/presentation/bloc/provider_state.dart';
+import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 import 'package:soplay/features/search/presentation/pages/search_page.dart';
 
 import '../../../../core/navigation/nav_controller.dart';
@@ -23,6 +29,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _index = 0;
   late final NavController _navController;
+  String? _lastProviderId;
 
   static const _tabs = <Widget>[
     HomePage(),
@@ -46,6 +53,19 @@ class _MainPageState extends State<MainPage> {
     super.dispose();
   }
 
+  void _onProviderStateChange(BuildContext context, ProviderState state) {
+    if (state is! ProviderLoaded) return;
+    final newId = state.currentProviderId;
+    if (_lastProviderId == null) {
+      _lastProviderId = newId;
+      return;
+    }
+    if (_lastProviderId == newId) return;
+    _lastProviderId = newId;
+    context.read<HomeBloc>().add(HomeLoad(silent: true));
+    context.read<SearchBloc>().add(const SearchLoad());
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -53,16 +73,27 @@ class _MainPageState extends State<MainPage> {
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        extendBody: true,
-        body: IndexedStack(index: _index, children: _tabs),
-        bottomNavigationBar: _SoplayBottomNav(
-          index: _index,
-          onTap: (i) {
-            setState(() => _index = i);
-            _navController.goTo(i);
+      child: BlocListener<ProviderBloc, ProviderState>(
+        listener: _onProviderStateChange,
+        child: PopScope(
+          canPop: _index == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            setState(() => _index = 0);
+            _navController.goTo(0);
           },
+          child: Scaffold(
+            backgroundColor: AppColors.background,
+            extendBody: true,
+            body: IndexedStack(index: _index, children: _tabs),
+            bottomNavigationBar: _SoplayBottomNav(
+              index: _index,
+              onTap: (i) {
+                setState(() => _index = i);
+                _navController.goTo(i);
+              },
+            ),
+          ),
         ),
       ),
     );

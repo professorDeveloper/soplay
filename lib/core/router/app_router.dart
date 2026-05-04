@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:soplay/features/auth/presentation/pages/login_page.dart';
+import 'package:soplay/features/auth/presentation/pages/otp_verify_page.dart';
 import 'package:soplay/features/auth/presentation/pages/register_page.dart';
 import 'package:soplay/features/detail/domain/entities/detail_args.dart';
 import 'package:soplay/features/detail/domain/entities/episodes_args.dart';
@@ -67,6 +68,13 @@ class AppRouter {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/otp',
+        builder: (context, state) {
+          final email = state.extra as String? ?? '';
+          return OtpVerifyPage(email: email);
+        },
       ),
     ],
   );

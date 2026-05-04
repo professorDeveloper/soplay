@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/auth/domain/entities/user_entity.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
@@ -16,12 +15,7 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<ProviderBloc>()..add(const ProviderLoad()),
-      child: const _ProfileView(),
-    );
-  }
+  Widget build(BuildContext context) => const _ProfileView();
 }
 
 class _ProfileView extends StatefulWidget {
@@ -363,10 +357,12 @@ class _ProvidersSheet extends StatelessWidget {
 
   static void show(BuildContext context, ProviderBloc bloc, int count) {
     final screenH = MediaQuery.sizeOf(context).height;
-    // ~100px per item + 170px fixed overhead (handle + header + padding)
-    final contentH = count * 100.0 + 170.0;
-    final initial = (contentH / screenH).clamp(0.3, 0.92);
-    final max = count >= 5 ? 1.0 : initial;
+    // Compact list: ~64px per row + 8px gap + 150px overhead (handle + header + padding)
+    const rowH = 64.0;
+    const gap = 8.0;
+    final contentH = count * rowH + (count - 1) * gap + 150;
+    final initial = (contentH / screenH).clamp(0.3, 0.85);
+    final max = count >= 6 ? 0.9 : initial;
 
     showModalBottomSheet<void>(
       context: context,
@@ -443,134 +439,115 @@ class _ProvidersList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       controller: scrollController,
-      padding: EdgeInsets.only(bottom: bottomPad + 16, top: 4),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPad + 16),
       itemCount: state.providers.length,
-      separatorBuilder: (context, i) => const Divider(
-        color: AppColors.divider,
-        height: 1,
-        indent: 74,
-      ),
+      separatorBuilder: (context, i) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final provider = state.providers[i];
         final selected = provider.id == state.currentProviderId;
-
-        return Material(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.06)
-              : Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              context.read<ProviderBloc>().add(ProviderSelect(provider.id));
-              Navigator.of(context).pop();
-            },
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              child: Row(
-                children: [
-                  _ProviderLogo(provider: provider, size: 46),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          provider.name,
-                          style: TextStyle(
-                            color: selected
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
-                            fontSize: 15,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                        if (provider.description.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            provider.description,
-                            style: const TextStyle(
-                              color: AppColors.textHint,
-                              fontSize: 12,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (provider.url.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.link_rounded,
-                                  size: 12, color: AppColors.textHint),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  provider.url,
-                                  style: const TextStyle(
-                                    color: AppColors.textHint,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (provider.domains.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 5,
-                            runSpacing: 4,
-                            children: provider.domains
-                                .take(3)
-                                .map(
-                                  (d) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceVariant,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      d,
-                                      style: const TextStyle(
-                                        color: AppColors.textHint,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  if (selected)
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check_rounded,
-                          color: Colors.white, size: 13),
-                    )
-                  else
-                    const SizedBox(width: 22),
-                ],
-              ),
-            ),
-          ),
+        return _ProviderListTile(
+          provider: provider,
+          selected: selected,
+          onTap: () {
+            context.read<ProviderBloc>().add(ProviderSelect(provider.id));
+            Navigator.of(context).pop();
+          },
         );
       },
+    );
+  }
+}
+
+class _ProviderListTile extends StatelessWidget {
+  const _ProviderListTile({
+    required this.provider,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ProviderEntity provider;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? AppColors.primary.withValues(alpha: 0.10)
+          : AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: selected
+              ? Border.all(color: AppColors.primary, width: 1.2)
+              : null,
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                _ProviderLogo(provider: provider, size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        provider.name,
+                        style: TextStyle(
+                          color: selected
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (provider.description.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          provider.description,
+                          style: const TextStyle(
+                            color: AppColors.textHint,
+                            fontSize: 11,
+                            height: 1.25,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (selected)
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_rounded,
+                        color: Colors.white, size: 12),
+                  )
+                else
+                  const Icon(Icons.chevron_right_rounded,
+                      color: AppColors.textHint, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
