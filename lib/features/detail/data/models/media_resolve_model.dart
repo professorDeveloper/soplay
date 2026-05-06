@@ -1,3 +1,4 @@
+import 'package:soplay/features/detail/data/models/subtitle_model.dart';
 import 'package:soplay/features/detail/data/models/video_source_model.dart';
 import 'package:soplay/features/detail/domain/entities/media_resolve_entity.dart';
 
@@ -9,6 +10,7 @@ class MediaResolveModel extends MediaResolveEntity {
     super.videoSources,
     super.languagesAvailable,
     super.activeLang,
+    super.subtitles,
   });
 
   factory MediaResolveModel.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,10 @@ class MediaResolveModel extends MediaResolveEntity {
         .whereType<Map<String, dynamic>>()
         .map(VideoSourceModel.fromJson)
         .toList(growable: false);
+    final subs = (json['subtitles'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(SubtitleModel.fromJson)
+        .toList(growable: false);
     return MediaResolveModel(
       videoUrl: json['videoUrl'] as String? ?? '',
       type: typeRaw == null || typeRaw.isEmpty ? null : typeRaw.toLowerCase(),
@@ -24,6 +30,7 @@ class MediaResolveModel extends MediaResolveEntity {
       videoSources: sources,
       languagesAvailable: _parseLangs(json['languagesAvailable']),
       activeLang: _parseActiveLang(json['server']),
+      subtitles: subs,
     );
   }
 

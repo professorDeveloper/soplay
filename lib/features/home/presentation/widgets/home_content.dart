@@ -1,10 +1,14 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/history/data/history_service.dart';
+import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/widgets/home_banner.dart';
+import 'package:soplay/features/home/presentation/widgets/home_history_section.dart';
 import 'package:soplay/features/home/presentation/widgets/home_movie_section.dart';
 import 'package:soplay/features/home/presentation/widgets/home_top_bar.dart';
 import 'package:soplay/features/search/domain/entities/genre_entity.dart';
@@ -23,6 +27,8 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   late final ScrollController _scrollController;
+  final HistoryService _historyService = getIt<HistoryService>();
+  List<HistoryItem> _historyItems = const [];
 
   final _blurProgress = ValueNotifier<double>(0);
 
@@ -30,6 +36,14 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     _scrollController = ScrollController()..addListener(_handleScroll);
+    _historyService.revision.addListener(_loadHistory);
+    _loadHistory();
+  }
+
+  void _loadHistory() {
+    final items = _historyService.getAll();
+    if (!mounted) return;
+    setState(() => _historyItems = items);
   }
 
   void _handleScroll() {
@@ -42,6 +56,7 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   void dispose() {
+    _historyService.revision.removeListener(_loadHistory);
     _scrollController
       ..removeListener(_handleScroll)
       ..dispose();
@@ -69,6 +84,7 @@ class _HomeContentState extends State<HomeContent> {
               ),
               Future<void>.delayed(const Duration(milliseconds: 850)),
             ]);
+            _loadHistory();
           },
           child: CustomScrollView(
             controller: _scrollController,
@@ -80,6 +96,12 @@ class _HomeContentState extends State<HomeContent> {
                   topPadding: topPad,
                 ),
               ),
+              if (_historyItems.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: RepaintBoundary(
+                    child: HistorySection(items: _historyItems),
+                  ),
+                ),
               if (widget.state.genres.isNotEmpty)
                 SliverToBoxAdapter(
                   child: RepaintBoundary(

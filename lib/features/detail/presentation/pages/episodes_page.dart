@@ -10,6 +10,8 @@ import 'package:soplay/features/detail/domain/entities/episode_entity.dart';
 import 'package:soplay/features/detail/domain/entities/episodes_args.dart';
 import 'package:soplay/features/detail/domain/entities/player_args.dart';
 import 'package:soplay/features/detail/domain/usecases/get_episodes_usecase.dart';
+import 'package:soplay/features/history/data/history_service.dart';
+import 'package:soplay/features/history/domain/entities/history_item.dart';
 
 class EpisodesPage extends StatefulWidget {
   const EpisodesPage({super.key, required this.args});
@@ -22,6 +24,7 @@ class EpisodesPage extends StatefulWidget {
 class _EpisodesPageState extends State<EpisodesPage> {
   final ScrollController _scroll = ScrollController();
   final ValueNotifier<double> _blurProgress = ValueNotifier<double>(0);
+  final HistoryService _historyService = getIt<HistoryService>();
   late final GetEpisodesUseCase _getEpisodes;
 
   late List<EpisodeEntity> _episodes;
@@ -35,6 +38,8 @@ class _EpisodesPageState extends State<EpisodesPage> {
   bool _showImages = false;
   String? _error;
 
+  HistoryItem? _historyItem;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +51,14 @@ class _EpisodesPageState extends State<EpisodesPage> {
     _size = widget.args.size;
     _showImages = _hasAnyImage(_episodes);
     _scroll.addListener(_onScroll);
+    _historyService.revision.addListener(_refreshHistory);
+    _refreshHistory();
+  }
+
+  void _refreshHistory() {
+    final item = _historyService.get(widget.args.contentUrl);
+    if (!mounted) return;
+    setState(() => _historyItem = item);
   }
 
   static bool _hasAnyImage(List<EpisodeEntity> list) {
@@ -58,6 +71,7 @@ class _EpisodesPageState extends State<EpisodesPage> {
 
   @override
   void dispose() {
+    _historyService.revision.removeListener(_refreshHistory);
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
     _blurProgress.dispose();
@@ -162,14 +176,23 @@ class _EpisodesPageState extends State<EpisodesPage> {
   }
 
   void _playFrom(int index) {
+    // Resume from saved position if this is the history episode
+    final resumeMs = (_historyItem != null &&
+            _historyItem!.episodeIndex == index &&
+            _historyItem!.positionMs > 0)
+        ? _historyItem!.positionMs
+        : 0;
     context.push(
       '/player',
       extra: PlayerArgs(
         title: widget.args.title,
         provider: widget.args.provider,
         headers: widget.args.headers,
+        contentUrl: widget.args.contentUrl,
+        thumbnail: widget.args.thumbnail,
         episodes: _episodes,
         initialEpisodeIndex: index,
+        resumePosition: Duration(milliseconds: resumeMs),
       ),
     );
   }
@@ -218,11 +241,16 @@ class _EpisodesPageState extends State<EpisodesPage> {
                           height: 1,
                           indent: _showImages ? 116 : 76,
                         ),
-                        itemBuilder: (_, i) => _EpisodeRow(
-                          episode: _episodes[i],
-                          showImage: _showImages,
-                          onTap: () => _playFrom(i),
-                        ),
+                        itemBuilder: (_, i) {
+                          final isCurrent = _historyItem != null &&
+                              _historyItem!.episodeIndex == i;
+                          return _EpisodeRow(
+                            episode: _episodes[i],
+                            showImage: _showImages,
+                            progress: isCurrent ? _historyItem!.progress : null,
+                            onTap: () => _playFrom(i),
+                          );
+                        },
                       ),
                       if (_loadingMore)
                         const SliverToBoxAdapter(
@@ -465,11 +493,13 @@ class _EpisodeRow extends StatelessWidget {
     required this.episode,
     required this.showImage,
     required this.onTap,
+    this.progress,
   });
 
   final EpisodeEntity episode;
   final bool showImage;
   final VoidCallback onTap;
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
@@ -486,76 +516,103 @@ class _EpisodeRow extends StatelessWidget {
           horizontal: 16,
           vertical: showImage ? 8 : 14,
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (showImage) ...[
-              _EpisodeThumb(image: episode.image, episode: episode.episode),
-              const SizedBox(width: 12),
-            ] else
-              SizedBox(
-                width: 44,
-                child: Text(
-                  '${episode.episode}'.padLeft(2, '0'),
-                  style: const TextStyle(
-                    color: AppColors.textHint,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+            Row(
+              children: [
+                if (showImage) ...[
+                  _EpisodeThumb(image: episode.image, episode: episode.episode),
+                  const SizedBox(width: 12),
+                ] else
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      '${episode.episode}'.padLeft(2, '0'),
+                      style: TextStyle(
+                        color: progress != null ? AppColors.primary : AppColors.textHint,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                if (!showImage) const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: showImage ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: showImage
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: showImage ? 13 : 14,
+                          fontWeight:
+                              showImage ? FontWeight.w600 : FontWeight.w500,
+                          height: 1.25,
+                        ),
+                      ),
+                      if (showImage && _meta(episode).isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _meta(episode),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textHint,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (hasSub) const _LangChip(label: 'SUB', primary: true),
+                if (hasSub && hasDub) const SizedBox(width: 4),
+                if (hasDub) const _LangChip(label: 'DUB', primary: false),
+                if (hasSub || hasDub) const SizedBox(width: 10),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: progress != null
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : AppColors.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    color: progress != null
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
+                    size: 18,
+                  ),
+                ),
+              ],
+            ),
+            if (progress != null)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: showImage ? 0 : 56,
+                  top: 6,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(1.5),
+                  child: LinearProgressIndicator(
+                    value: progress!,
+                    minHeight: 3,
+                    backgroundColor: AppColors.divider,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
                   ),
                 ),
               ),
-            if (!showImage) const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    maxLines: showImage ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: showImage
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                      fontSize: showImage ? 13 : 14,
-                      fontWeight:
-                          showImage ? FontWeight.w600 : FontWeight.w500,
-                      height: 1.25,
-                    ),
-                  ),
-                  if (showImage && _meta(episode).isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      _meta(episode),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textHint,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (hasSub) const _LangChip(label: 'SUB', primary: true),
-            if (hasSub && hasDub) const SizedBox(width: 4),
-            if (hasDub) const _LangChip(label: 'DUB', primary: false),
-            if (hasSub || hasDub) const SizedBox(width: 10),
-            Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceVariant,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                color: AppColors.textPrimary,
-                size: 18,
-              ),
-            ),
           ],
         ),
       ),

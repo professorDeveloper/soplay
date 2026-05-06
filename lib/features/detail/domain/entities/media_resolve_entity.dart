@@ -1,3 +1,4 @@
+import 'subtitle_entity.dart';
 import 'video_source_entity.dart';
 
 class MediaResolveEntity {
@@ -7,6 +8,7 @@ class MediaResolveEntity {
   final List<VideoSourceEntity> videoSources;
   final List<String> languagesAvailable;
   final String? activeLang;
+  final List<SubtitleEntity> subtitles;
 
   const MediaResolveEntity({
     required this.videoUrl,
@@ -15,5 +17,6 @@ class MediaResolveEntity {
     this.videoSources = const [],
     this.languagesAvailable = const [],
     this.activeLang,
+    this.subtitles = const [],
   });
 }

@@ -15,6 +15,7 @@ import 'package:soplay/features/detail/presentation/blocs/episodes_bloc/episodes
 import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_bloc.dart';
 import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_event.dart';
 import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_state.dart';
+import 'package:soplay/features/history/data/history_service.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_cast_tab.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_comments_tab.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_hero.dart';
@@ -37,14 +38,24 @@ class DetailPage extends StatelessWidget {
         BlocProvider(create: (_) => getIt<EpisodesBloc>()),
         BlocProvider(create: (_) => getIt<FavoriteBloc>()),
       ],
-      child: _DetailScaffold(contentUrl: args.contentUrl),
+      child: _DetailScaffold(
+        contentUrl: args.contentUrl,
+        autoPlay: args.autoPlay,
+        resumeEpisodeIndex: args.resumeEpisodeIndex,
+      ),
     );
   }
 }
 
 class _DetailScaffold extends StatelessWidget {
-  const _DetailScaffold({required this.contentUrl});
+  const _DetailScaffold({
+    required this.contentUrl,
+    this.autoPlay = false,
+    this.resumeEpisodeIndex,
+  });
   final String contentUrl;
+  final bool autoPlay;
+  final int? resumeEpisodeIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +100,11 @@ class _DetailScaffold extends StatelessWidget {
                           ],
                         );
                       }
-                      return _DetailView(detail: detail);
+                      return _DetailView(
+                        detail: detail,
+                        autoPlay: autoPlay,
+                        resumeEpisodeIndex: resumeEpisodeIndex,
+                      );
                     },
                   ),
                 DetailError(:final message) => _ErrorView(
@@ -117,8 +132,14 @@ class _DetailScaffold extends StatelessWidget {
 }
 
 class _DetailView extends StatefulWidget {
-  const _DetailView({required this.detail});
+  const _DetailView({
+    required this.detail,
+    this.autoPlay = false,
+    this.resumeEpisodeIndex,
+  });
   final DetailEntity detail;
+  final bool autoPlay;
+  final int? resumeEpisodeIndex;
 
   @override
   State<_DetailView> createState() => _DetailViewState();
@@ -137,6 +158,7 @@ class _DetailViewState extends State<_DetailView>
   late final bool _hasCast;
   late final bool _hasShots;
   double _collapseRange = 1;
+  bool _autoPlayTriggered = false;
 
   @override
   void initState() {
@@ -154,6 +176,12 @@ class _DetailViewState extends State<_DetailView>
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
+    if (widget.autoPlay && !_autoPlayTriggered) {
+      _autoPlayTriggered = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onPrimaryAction();
+      });
+    }
   }
 
   void _onTabChanged() {
@@ -287,6 +315,7 @@ class _DetailViewState extends State<_DetailView>
               ? playback.contentUrl
               : widget.detail.contentUrl,
           provider: playback.provider,
+          thumbnail: widget.detail.thumbnail,
           episodes: playback.episodes,
           headers: playback.headers,
           page: playback.page,
@@ -323,15 +352,25 @@ class _DetailViewState extends State<_DetailView>
       _showSnack('No playable source');
       return;
     }
+    Duration resumePos = Duration.zero;
+    if (widget.autoPlay) {
+      final historyItem = getIt<HistoryService>().get(widget.detail.contentUrl);
+      if (historyItem != null) {
+        resumePos = Duration(milliseconds: historyItem.positionMs);
+      }
+    }
     context.push(
       '/player',
       extra: PlayerArgs(
         title: widget.detail.title,
         provider: playback.provider,
         headers: playback.headers,
+        contentUrl: widget.detail.contentUrl,
+        thumbnail: widget.detail.thumbnail,
         movieUrl: movieUrl,
         type: playback.type,
         videoSources: playback.videoSources,
+        resumePosition: resumePos,
       ),
     );
   }

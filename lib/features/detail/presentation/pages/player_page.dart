@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,8 +11,11 @@ import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/detail/domain/entities/episode_entity.dart';
 import 'package:soplay/features/detail/domain/entities/player_args.dart';
+import 'package:soplay/features/detail/domain/entities/subtitle_entity.dart';
 import 'package:soplay/features/detail/domain/entities/video_source_entity.dart';
 import 'package:soplay/features/detail/domain/usecases/resolve_media_usecase.dart';
+import 'package:soplay/features/history/data/history_service.dart';
+import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -38,6 +42,7 @@ class _PlayerPageState extends State<PlayerPage>
 
   final ResolveMediaUseCase _resolve = getIt<ResolveMediaUseCase>();
   final HiveService _hive = getIt<HiveService>();
+  final HistoryService _history = getIt<HistoryService>();
   final Floating _floating = Floating();
   bool _isPip = false;
   bool _resumeAfterPause = false;
@@ -61,6 +66,10 @@ class _PlayerPageState extends State<PlayerPage>
   String? _currentLang;
   List<String> _serverLangs = const [];
 
+  List<SubtitleEntity> _subtitles = const [];
+  int _activeSubtitleIndex = -1; // -1 = off
+  ClosedCaptionFile? _captionFile;
+
   double _playbackSpeed = 1.0;
   _PlayerFit _fit = _PlayerFit.contain;
 
@@ -70,6 +79,7 @@ class _PlayerPageState extends State<PlayerPage>
   double? _speedBeforeBoost;
 
   Timer? _hideTimer;
+  Timer? _historyTimer;
   late final AnimationController _controlsAnimation;
 
   late final AnimationController _seekRippleController;
@@ -256,8 +266,9 @@ class _PlayerPageState extends State<PlayerPage>
   }
 
   Future<void> _bootstrap() async {
+    final resume = widget.args.resumePosition;
     if (widget.args.isSerial) {
-      await _loadEpisode(_episodeIndex);
+      await _loadEpisode(_episodeIndex, resumeAt: resume);
     } else {
       _videoSources = List.of(widget.args.videoSources);
       _currentSourceIndex = _pickInitialMovieSourceIndex(_videoSources);
@@ -271,6 +282,7 @@ class _PlayerPageState extends State<PlayerPage>
         url: source?.videoUrl ?? widget.args.movieUrl ?? '',
         headers: widget.args.headers,
         type: widget.args.type,
+        resumeAt: resume,
       );
     }
   }
@@ -329,6 +341,7 @@ class _PlayerPageState extends State<PlayerPage>
         final useSources = sources.isNotEmpty;
         final pickedIdx = useSources ? 0 : -1;
         final url = useSources ? sources[pickedIdx].videoUrl : value.videoUrl;
+        final subs = value.subtitles;
         setState(() {
           _stage = _LoadingStage.loading;
           _serverLangs = value.languagesAvailable;
@@ -338,6 +351,9 @@ class _PlayerPageState extends State<PlayerPage>
           _currentQuality =
               useSources ? sources[pickedIdx].quality : null;
           _autoFallbackUsed = false;
+          _subtitles = subs;
+          _activeSubtitleIndex = -1;
+          _captionFile = null;
         });
         await _initializeWith(
           url: url,
@@ -345,6 +361,13 @@ class _PlayerPageState extends State<PlayerPage>
           type: value.type,
           resumeAt: resumeAt,
         );
+        // Auto-select default subtitle
+        if (subs.isNotEmpty) {
+          final defaultIdx = subs.indexWhere((s) => s.isDefault);
+          if (defaultIdx >= 0) {
+            _loadSubtitle(defaultIdx);
+          }
+        }
       case Failure(:final error):
         setState(() {
           _initializing = false;
@@ -361,6 +384,71 @@ class _PlayerPageState extends State<PlayerPage>
     if (saved != null && epLangs.contains(saved)) return saved;
     if (epLangs.contains(_kSubLang)) return _kSubLang;
     return epLangs.first;
+  }
+
+  void _scheduleHistorySave() {
+    _historyTimer?.cancel();
+    _historyTimer = Timer(const Duration(seconds: 5), _saveHistory);
+  }
+
+  void _saveHistory() {
+    final contentUrl = widget.args.contentUrl;
+    if (contentUrl == null || contentUrl.isEmpty) return;
+    final c = _controller;
+    final posMs = c != null && c.value.isInitialized
+        ? c.value.position.inMilliseconds
+        : 0;
+    final durMs = c != null && c.value.isInitialized
+        ? c.value.duration.inMilliseconds
+        : 0;
+
+    // Don't save if at the very end — next-episode logic handles that
+    if (durMs > 0 && posMs >= durMs - 2000) return;
+
+    EpisodeEntity? ep;
+    if (widget.args.isSerial &&
+        _episodeIndex >= 0 &&
+        _episodeIndex < widget.args.episodes.length) {
+      ep = widget.args.episodes[_episodeIndex];
+    }
+
+    _history.save(HistoryItem(
+      contentUrl: contentUrl,
+      provider: widget.args.provider,
+      title: widget.args.title,
+      thumbnail: widget.args.thumbnail,
+      isSerial: widget.args.isSerial,
+      episodeIndex: widget.args.isSerial ? _episodeIndex : null,
+      episodeNumber: ep?.episode,
+      episodeLabel: ep?.label,
+      positionMs: posMs,
+      durationMs: durMs,
+      watchedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+  }
+
+  void _saveHistoryForNextEpisode() {
+    final contentUrl = widget.args.contentUrl;
+    if (contentUrl == null || contentUrl.isEmpty) return;
+    if (!widget.args.isSerial) return;
+
+    final nextIdx = _episodeIndex + 1;
+    if (nextIdx >= widget.args.episodes.length) return;
+
+    final nextEp = widget.args.episodes[nextIdx];
+    _history.save(HistoryItem(
+      contentUrl: contentUrl,
+      provider: widget.args.provider,
+      title: widget.args.title,
+      thumbnail: widget.args.thumbnail,
+      isSerial: true,
+      episodeIndex: nextIdx,
+      episodeNumber: nextEp.episode,
+      episodeLabel: nextEp.label,
+      positionMs: 0,
+      durationMs: 0,
+      watchedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   List<String> _availableLangsForCurrentEpisode() {
@@ -578,19 +666,33 @@ class _PlayerPageState extends State<PlayerPage>
       _wasPlaying = v.isPlaying;
       changed = true;
       if (_isPip) _refreshPipActions();
+      if (v.isPlaying) {
+        _scheduleHistorySave();
+      } else {
+        _saveHistory();
+      }
     }
     if (v.isBuffering != _wasBuffering) {
       _wasBuffering = v.isBuffering;
       changed = true;
     }
 
-    if (v.isInitialized &&
-        v.duration.inMilliseconds > 0 &&
-        v.position >= v.duration) {
-      if (widget.args.isSerial &&
-          _episodeIndex + 1 < widget.args.episodes.length) {
-        _loadEpisode(_episodeIndex + 1);
-        return;
+    if (v.isInitialized && v.duration.inMilliseconds > 0) {
+      final remaining = v.duration - v.position;
+      final isEnding = remaining <= const Duration(seconds: 2);
+      if (isEnding) {
+        if (widget.args.isSerial &&
+            _episodeIndex + 1 < widget.args.episodes.length) {
+          // Episode finished — save history pointing to next episode
+          _saveHistoryForNextEpisode();
+          _loadEpisode(_episodeIndex + 1);
+          return;
+        }
+        // Last episode or movie finished — remove from "continue watching"
+        final url = widget.args.contentUrl;
+        if (url != null && url.isNotEmpty) {
+          _history.remove(url);
+        }
       }
     }
 
@@ -679,9 +781,11 @@ class _PlayerPageState extends State<PlayerPage>
 
   @override
   void dispose() {
+    _saveHistory();
     WidgetsBinding.instance.removeObserver(this);
     _pipChannel.setMethodCallHandler(null);
     _hideTimer?.cancel();
+    _historyTimer?.cancel();
     _seekRippleTimer?.cancel();
     _controlsAnimation.dispose();
     _seekRippleController.dispose();
@@ -949,6 +1053,104 @@ class _PlayerPageState extends State<PlayerPage>
     );
   }
 
+  Future<void> _loadSubtitle(int index) async {
+    if (index < 0 || index >= _subtitles.length) {
+      setState(() {
+        _activeSubtitleIndex = -1;
+        _captionFile = null;
+      });
+      return;
+    }
+    setState(() => _activeSubtitleIndex = index);
+    final sub = _subtitles[index];
+    try {
+      final response = await Dio().get<String>(
+        sub.file,
+        options: Options(responseType: ResponseType.plain),
+      );
+      if (!mounted) return;
+      final body = response.data;
+      if (body != null && body.isNotEmpty) {
+        final isVtt =
+            sub.file.toLowerCase().endsWith('.vtt') || body.trimLeft().startsWith('WEBVTT');
+        setState(() {
+          _captionFile =
+              isVtt ? WebVTTCaptionFile(body) : SubRipCaptionFile(body);
+        });
+      }
+    } catch (e) {
+      debugPrint('[PLAYER] subtitle load error: $e');
+    }
+  }
+
+  void _disableSubtitle() {
+    setState(() {
+      _activeSubtitleIndex = -1;
+      _captionFile = null;
+    });
+  }
+
+  void _openSubtitleSheet() {
+    if (_subtitles.isEmpty) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF111111),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.subtitles_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Subtitles',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              _OptionTile(
+                label: 'Off',
+                selected: _activeSubtitleIndex == -1,
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _disableSubtitle();
+                },
+              ),
+              for (var i = 0; i < _subtitles.length; i++)
+                _OptionTile(
+                  label: _subtitles[i].label,
+                  selected: i == _activeSubtitleIndex,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _loadSubtitle(i);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _openSettingsSheet() {
     final hasQualities = _videoSources.length > 1;
     final langs = _availableLangsForCurrentEpisode();
@@ -1027,11 +1229,20 @@ class _PlayerPageState extends State<PlayerPage>
                   _openLangSheet();
                 },
               ),
-            const _SettingsTile(
+            _SettingsTile(
               icon: Icons.subtitles_outlined,
               label: 'Subtitles',
-              value: 'Coming soon',
-              onTap: null,
+              value: _subtitles.isEmpty
+                  ? 'N/A'
+                  : _activeSubtitleIndex >= 0
+                      ? _subtitles[_activeSubtitleIndex].label
+                      : 'Off',
+              onTap: _subtitles.isEmpty
+                  ? null
+                  : () {
+                      Navigator.of(sheetContext).pop();
+                      _openSubtitleSheet();
+                    },
             ),
             if (!hasLangs)
               const _SettingsTile(
@@ -1215,6 +1426,7 @@ class _PlayerPageState extends State<PlayerPage>
                 fit: StackFit.expand,
                 children: [
                   _buildVideoLayer(),
+                  _buildSubtitleOverlay(),
                   _buildSeekRipple(),
                   _buildControlsOverlay(),
                   _buildScrubOverlay(),
@@ -1280,6 +1492,60 @@ class _PlayerPageState extends State<PlayerPage>
       child: ColoredBox(
         color: Colors.black,
         child: _FittedVideo(controller: c, fit: _fit),
+      ),
+    );
+  }
+
+  Widget _buildSubtitleOverlay() {
+    final c = _controller;
+    final captions = _captionFile;
+    if (c == null || !c.value.isInitialized || captions == null) {
+      return const SizedBox.shrink();
+    }
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: _controlsVisible ? 100 : 24,
+      child: IgnorePointer(
+        child: ValueListenableBuilder<VideoPlayerValue>(
+          valueListenable: c,
+          builder: (_, value, _) {
+            final position = value.position;
+            Caption? active;
+            for (final caption in captions.captions) {
+              if (position >= caption.start && position <= caption.end) {
+                active = caption;
+                break;
+              }
+            }
+            if (active == null || active.text.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  active.text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

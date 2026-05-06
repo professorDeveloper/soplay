@@ -39,7 +39,7 @@ class AuthRemoteDataSource {
   }) async {
     final response = await dio.post(
       '/auth/register/verify',
-      data: {'email': email, 'code': code},
+      data: {'email': email, 'otp': code},
     );
     return AuthModel.fromJson(response.data as Map<String, dynamic>);
   }

@@ -1,10 +1,10 @@
 class AppConstants {
   AppConstants._();
 
-  static const String baseUrl =
-      'https://customized-studied-investigations-aim.trycloudflare.com/api';
+  static const String baseUrl = 'https://wires-guarantees-commonwealth-increases.trycloudflare.com/api';
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
+  static const String historyBox = 'history_box';
   static const String productsBox = 'products_box';
   static const String cartBox = 'cart_box';
 

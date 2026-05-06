@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/auth/domain/entities/user_entity.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_event.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_state.dart';
+import 'package:soplay/features/detail/domain/entities/detail_args.dart';
+import 'package:soplay/features/history/data/history_service.dart';
+import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:soplay/features/profile/domain/entities/provider_entity.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_bloc.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_event.dart';
@@ -77,6 +81,8 @@ class _ProfileViewState extends State<_ProfileView> {
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 10)),
             const SliverToBoxAdapter(child: _ProvidersSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+            const SliverToBoxAdapter(child: _WatchHistorySection()),
             const SliverToBoxAdapter(child: SizedBox(height: 10)),
             const SliverToBoxAdapter(child: _AboutSection()),
             SliverToBoxAdapter(child: SizedBox(height: bottomPad + 96)),
@@ -614,6 +620,287 @@ class _ProvidersError extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _WatchHistorySection extends StatefulWidget {
+  const _WatchHistorySection();
+
+  @override
+  State<_WatchHistorySection> createState() => _WatchHistorySectionState();
+}
+
+class _WatchHistorySectionState extends State<_WatchHistorySection> {
+  final HistoryService _historyService = getIt<HistoryService>();
+  List<HistoryItem> _items = const [];
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _historyService.revision.addListener(_reload);
+    _reload();
+  }
+
+  @override
+  void dispose() {
+    _historyService.revision.removeListener(_reload);
+    super.dispose();
+  }
+
+  void _reload() {
+    final items = _historyService.getAll();
+    if (!mounted) return;
+    setState(() => _items = items);
+  }
+
+  void _clearHistory() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Clear History',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to clear your watch history?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _historyService.clearAll();
+            },
+            child: const Text(
+              'Clear',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionLabel('WATCH HISTORY'),
+          const SizedBox(height: 8),
+          _SectionCard(
+            children: [
+              _Tile(
+                icon: Icons.history_rounded,
+                title: 'Watch History',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_items.length}',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      color: AppColors.textHint,
+                      size: 20,
+                    ),
+                  ],
+                ),
+                onTap: _items.isEmpty
+                    ? null
+                    : () => setState(() => _expanded = !_expanded),
+              ),
+              if (_expanded && _items.isNotEmpty) ...[
+                const Divider(color: AppColors.divider, height: 1),
+                for (var i = 0; i < _items.length; i++) ...[
+                  _HistoryListTile(item: _items[i]),
+                  if (i < _items.length - 1)
+                    Divider(
+                      color: AppColors.divider,
+                      height: 1,
+                      indent: 62,
+                    ),
+                ],
+                const Divider(color: AppColors.divider, height: 1),
+                InkWell(
+                  onTap: _clearHistory,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.primary,
+                          size: 16,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Clear History',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryListTile extends StatelessWidget {
+  const _HistoryListTile({required this.item});
+  final HistoryItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        if (item.contentUrl.isNotEmpty) {
+          context.push(
+            '/detail',
+            extra: DetailArgs(
+              contentUrl: item.contentUrl,
+              autoPlay: true,
+              resumeEpisodeIndex: item.episodeIndex,
+            ),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 40,
+                height: 56,
+                child: item.thumbnail != null && item.thumbnail!.isNotEmpty
+                    ? Image.network(
+                        item.thumbnail!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: AppColors.surfaceVariant,
+                          child: const Icon(
+                            Icons.movie_outlined,
+                            color: AppColors.textHint,
+                            size: 16,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.surfaceVariant,
+                        child: const Icon(
+                          Icons.movie_outlined,
+                          color: AppColors.textHint,
+                          size: 16,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  if (item.isSerial && item.episodeNumber != null)
+                    Text(
+                      'Episode ${item.episodeNumber}${item.episodeLabel != null && item.episodeLabel!.trim().isNotEmpty ? ' · ${item.episodeLabel}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  if (item.progress > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(1.5),
+                        child: LinearProgressIndicator(
+                          value: item.progress,
+                          minHeight: 3,
+                          backgroundColor: AppColors.divider,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _timeAgo(item.watchedAt),
+              style: const TextStyle(
+                color: AppColors.textHint,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _timeAgo(int ms) {
+    final diff = DateTime.now().millisecondsSinceEpoch - ms;
+    final minutes = diff ~/ 60000;
+    if (minutes < 1) return 'now';
+    if (minutes < 60) return '${minutes}m';
+    final hours = minutes ~/ 60;
+    if (hours < 24) return '${hours}h';
+    final days = hours ~/ 24;
+    if (days < 7) return '${days}d';
+    return '${days ~/ 7}w';
   }
 }
 

@@ -4,6 +4,7 @@ class EpisodesArgs {
   final String title;
   final String contentUrl;
   final String provider;
+  final String? thumbnail;
   final List<EpisodeEntity> episodes;
   final Map<String, String> headers;
   final int page;
@@ -16,6 +17,7 @@ class EpisodesArgs {
     required this.episodes,
     this.contentUrl = '',
     this.provider = '',
+    this.thumbnail,
     this.headers = const {},
     this.page = 1,
     this.size = 100,

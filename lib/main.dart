@@ -41,6 +41,7 @@ Future<void> _initHive() async {
   await Future.wait([
     Hive.openBox(AppConstants.authBox),
     Hive.openBox(AppConstants.settingsBox),
+    Hive.openBox(AppConstants.historyBox),
   ]);
 }
 

@@ -5,6 +5,7 @@ import 'package:soplay/core/network/dio_client.dart';
 import 'package:soplay/core/network/logging_interceptor.dart';
 import 'package:soplay/core/network/provider_interceptor.dart';
 import 'package:soplay/core/storage/hive_service.dart';
+import 'package:soplay/features/history/data/history_service.dart';
 import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/resend_otp_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/verify_otp_usecase.dart';
@@ -66,6 +67,7 @@ final getIt = GetIt.instance;
 
 Future<void> configureDependencies() async {
   getIt.registerSingleton<HiveService>(HiveService());
+  getIt.registerSingleton<HistoryService>(HistoryService());
 
   final dio = DioClient.instance;
   dio.interceptors.add(ProviderInterceptor(hiveService: getIt<HiveService>()));
