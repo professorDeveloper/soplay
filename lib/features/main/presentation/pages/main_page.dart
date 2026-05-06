@@ -455,7 +455,7 @@ class _ShortsRefreshShowcaseCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            "Shorts tabni ikki marta bosing. Feed yangilanadi va yangi videolar qo'yilib ketadi.",
+            "Double-click on the Shorts tab. The feed is refreshed and new videos are uploaded.",
             style: TextStyle(
               color: Colors.white70,
               fontSize: 13,
