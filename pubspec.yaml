@@ -68,6 +68,7 @@ dependencies:
   video_player: ^2.9.5
   wakelock_plus: ^1.2.10
   floating: ^6.0.0
+  showcaseview: ^5.0.2
 
 dev_dependencies:
   flutter_test:

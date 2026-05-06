@@ -29,6 +29,7 @@ class ShortReelItem extends StatefulWidget {
 class _ShortReelItemState extends State<ShortReelItem>
     with TickerProviderStateMixin {
   VideoPlayerController? _vpc;
+  int _playerToken = 0;
   bool _hasError = false;
   bool _showPlayPause = false;
   bool _lastIconWasPause = false;
@@ -70,6 +71,13 @@ class _ShortReelItemState extends State<ShortReelItem>
   @override
   void didUpdateWidget(covariant ShortReelItem oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.short.id != widget.short.id ||
+        oldWidget.short.videoUrl != widget.short.videoUrl) {
+      _resetPlayerState();
+      _initPlayer();
+      return;
+    }
+
     if (oldWidget.active != widget.active) {
       if (!widget.active) {
         _vpc?.pause();
@@ -85,6 +93,7 @@ class _ShortReelItemState extends State<ShortReelItem>
 
   @override
   void dispose() {
+    _playerToken++;
     _playPauseAnim.dispose();
     _overlayAnim.dispose();
     _discAnim.dispose();
@@ -94,23 +103,56 @@ class _ShortReelItemState extends State<ShortReelItem>
   }
 
   Future<void> _initPlayer() async {
+    final token = ++_playerToken;
+    final previous = _vpc;
+    if (previous != null) {
+      previous.removeListener(_onTick);
+      previous.dispose();
+    }
+    _vpc = null;
+    _hasError = false;
+
     final url = widget.short.videoUrl.trim();
-    if (url.isEmpty) return;
+    if (url.isEmpty) {
+      if (mounted) setState(() {});
+      return;
+    }
+
     try {
       final c = VideoPlayerController.networkUrl(Uri.parse(url));
-      _vpc = c;
       await c.initialize();
-      if (!mounted) return;
+      if (!mounted || token != _playerToken) {
+        await c.dispose();
+        return;
+      }
       c.setLooping(true);
       c.addListener(_onTick);
+      c.setVolume(_muted ? 0.0 : 1.0);
+      _vpc = c;
       if (widget.active) {
         c.play();
         _discAnim.repeat();
       }
       setState(() {});
     } catch (_) {
-      if (mounted) setState(() => _hasError = true);
+      if (mounted && token == _playerToken) {
+        setState(() => _hasError = true);
+      }
     }
+  }
+
+  void _resetPlayerState() {
+    _discAnim.stop();
+    if (_speedBoosting) _stopSpeedBoost();
+    setState(() {
+      _hasError = false;
+      _showPlayPause = false;
+      _showControls = false;
+      _speedBoosting = false;
+      _seeking = false;
+      _seekValue = 0;
+      _showHeart = false;
+    });
   }
 
   void _onTick() {
@@ -265,11 +307,7 @@ class _ShortReelItemState extends State<ShortReelItem>
         ),
         if (_showPlayPause) _buildPlayPauseCenter(),
         if (_speedBoosting) _buildSpeedBadge(),
-        Positioned(
-          right: 12,
-          bottom: bottom + 100,
-          child: _buildSideRail(),
-        ),
+        Positioned(right: 12, bottom: bottom + 100, child: _buildSideRail()),
         Positioned(
           left: 14,
           right: 14,
@@ -316,8 +354,7 @@ class _ShortReelItemState extends State<ShortReelItem>
             child: Image.network(
               thumb,
               fit: BoxFit.cover,
-              errorBuilder: (_, e, s) =>
-                  const ColoredBox(color: Colors.black),
+              errorBuilder: (_, e, s) => const ColoredBox(color: Colors.black),
             ),
           ),
           ColoredBox(color: Colors.black.withValues(alpha: 0.3)),
@@ -328,7 +365,10 @@ class _ShortReelItemState extends State<ShortReelItem>
 
   Widget _buildBottomScrim() {
     return Positioned(
-      left: 0, right: 0, bottom: 0, height: 350,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 350,
       child: IgnorePointer(
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -356,11 +396,16 @@ class _ShortReelItemState extends State<ShortReelItem>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.broken_image_outlined,
-                  color: Colors.white38, size: 48),
+              Icon(
+                Icons.broken_image_outlined,
+                color: Colors.white38,
+                size: 48,
+              ),
               SizedBox(height: 10),
-              Text('Video unavailable',
-                  style: TextStyle(color: Colors.white54, fontSize: 13)),
+              Text(
+                'Video unavailable',
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             ],
           ),
         ),
@@ -377,8 +422,9 @@ class _ShortReelItemState extends State<ShortReelItem>
           final scale = t < 0.3
               ? Curves.elasticOut.transform((t / 0.3).clamp(0.0, 1.0))
               : 1.0;
-          final opacity =
-              t < 0.5 ? 1.0 : (1.0 - ((t - 0.5) * 2)).clamp(0.0, 1.0);
+          final opacity = t < 0.5
+              ? 1.0
+              : (1.0 - ((t - 0.5) * 2)).clamp(0.0, 1.0);
           return IgnorePointer(
             child: Opacity(
               opacity: opacity,
@@ -410,7 +456,8 @@ class _ShortReelItemState extends State<ShortReelItem>
   Widget _buildSpeedBadge() {
     return Positioned(
       top: MediaQuery.paddingOf(context).top + 50,
-      left: 0, right: 0,
+      left: 0,
+      right: 0,
       child: IgnorePointer(
         child: Center(
           child: TweenAnimationBuilder<double>(
@@ -421,8 +468,7 @@ class _ShortReelItemState extends State<ShortReelItem>
               child: Opacity(opacity: value, child: child),
             ),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(20),
@@ -430,14 +476,20 @@ class _ShortReelItemState extends State<ShortReelItem>
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.fast_forward_rounded,
-                      color: Colors.white, size: 16),
+                  Icon(
+                    Icons.fast_forward_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                   SizedBox(width: 6),
-                  Text('2x speed',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    '2x speed',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -467,9 +519,13 @@ class _ShortReelItemState extends State<ShortReelItem>
                 child: widget.likeLoading
                     ? const SizedBox(
                         key: ValueKey('loading'),
-                        width: 24, height: 24,
+                        width: 24,
+                        height: 24,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : Icon(
                         key: ValueKey(s.likedByMe),
                         s.likedByMe
@@ -478,19 +534,21 @@ class _ShortReelItemState extends State<ShortReelItem>
                         color: s.likedByMe ? Colors.red : Colors.white,
                         size: 28,
                         shadows: const [
-                          Shadow(color: Colors.black54, blurRadius: 6)
+                          Shadow(color: Colors.black54, blurRadius: 6),
                         ],
                       ),
               ),
               if (s.likeCount > 0) ...[
                 const SizedBox(height: 3),
-                Text(_fmtCount(s.likeCount),
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        shadows: [
-                          Shadow(color: Colors.black54, blurRadius: 3)
-                        ])),
+                Text(
+                  _fmtCount(s.likeCount),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+                  ),
+                ),
               ],
             ],
           ),
@@ -503,17 +561,22 @@ class _ShortReelItemState extends State<ShortReelItem>
             padding: const EdgeInsets.only(bottom: 18),
             child: Column(
               children: [
-                const Icon(Icons.remove_red_eye_outlined,
-                    color: Colors.white, size: 22,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 6)]),
+                const Icon(
+                  Icons.remove_red_eye_outlined,
+                  color: Colors.white,
+                  size: 22,
+                  shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+                ),
                 const SizedBox(height: 3),
-                Text(_fmtCount(s.viewCount),
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        shadows: [
-                          Shadow(color: Colors.black54, blurRadius: 3)
-                        ])),
+                Text(
+                  _fmtCount(s.viewCount),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+                  ),
+                ),
               ],
             ),
           ),
@@ -522,22 +585,23 @@ class _ShortReelItemState extends State<ShortReelItem>
         _RailButton(
           onTap: _toggleMute,
           child: Container(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.35),
               shape: BoxShape.circle,
             ),
             child: Icon(
               _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-              color: Colors.white, size: 18,
+              color: Colors.white,
+              size: 18,
             ),
           ),
         ),
         const SizedBox(height: 18),
 
         // Spinning disc (content thumbnail)
-        if (s.contentThumbnail.isNotEmpty)
-          _buildSpinningDisc(s),
+        if (s.contentThumbnail.isNotEmpty) _buildSpinningDisc(s),
       ],
     );
   }
@@ -547,12 +611,11 @@ class _ShortReelItemState extends State<ShortReelItem>
       onTap: widget.onOpenDetail,
       child: AnimatedBuilder(
         animation: _discAnim,
-        builder: (_, child) => Transform.rotate(
-          angle: _discAnim.value * 6.283,
-          child: child,
-        ),
+        builder: (_, child) =>
+            Transform.rotate(angle: _discAnim.value * 6.283, child: child),
         child: Container(
-          width: 48, height: 48,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
@@ -580,13 +643,17 @@ class _ShortReelItemState extends State<ShortReelItem>
                   fit: BoxFit.cover,
                   errorBuilder: (_, e, st) => Container(
                     color: const Color(0xFF2A2A2A),
-                    child: const Icon(Icons.movie_rounded,
-                        color: Colors.white54, size: 22),
+                    child: const Icon(
+                      Icons.movie_rounded,
+                      color: Colors.white54,
+                      size: 22,
+                    ),
                   ),
                 ),
                 Center(
                   child: Container(
-                    width: 14, height: 14,
+                    width: 14,
+                    height: 14,
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.7),
                       shape: BoxShape.circle,
@@ -625,7 +692,9 @@ class _ShortReelItemState extends State<ShortReelItem>
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
@@ -639,7 +708,7 @@ class _ShortReelItemState extends State<ShortReelItem>
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             shadows: [
-                              Shadow(color: Colors.black87, blurRadius: 4)
+                              Shadow(color: Colors.black87, blurRadius: 4),
                             ],
                           ),
                         ),
@@ -659,9 +728,7 @@ class _ShortReelItemState extends State<ShortReelItem>
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
-                      shadows: [
-                        Shadow(color: Colors.black87, blurRadius: 6)
-                      ],
+                      shadows: [Shadow(color: Colors.black87, blurRadius: 6)],
                     ),
                   ),
                 ),
@@ -671,26 +738,29 @@ class _ShortReelItemState extends State<ShortReelItem>
                   child: Row(
                     children: s.tags
                         .take(3)
-                        .map((tag) => Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '#$tag',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                        .map(
+                          (tag) => Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '#$tag',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            ))
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -733,7 +803,8 @@ class _ShortReelItemState extends State<ShortReelItem>
           child: Row(
             children: [
               Container(
-                width: 36, height: 36,
+                width: 36,
+                height: 36,
                 margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
@@ -745,13 +816,19 @@ class _ShortReelItemState extends State<ShortReelItem>
                         s.contentThumbnail,
                         fit: BoxFit.cover,
                         errorBuilder: (_, e, st) => const Center(
-                          child: Icon(Icons.movie_rounded,
-                              color: Colors.white70, size: 20),
+                          child: Icon(
+                            Icons.movie_rounded,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
                         ),
                       )
                     : const Center(
-                        child: Icon(Icons.movie_rounded,
-                            color: Colors.white70, size: 20),
+                        child: Icon(
+                          Icons.movie_rounded,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
                       ),
               ),
               Expanded(
@@ -763,9 +840,9 @@ class _ShortReelItemState extends State<ShortReelItem>
                       s.contentTitle.isNotEmpty
                           ? s.contentTitle
                           : s.tags.isNotEmpty
-                              ? s.tags.first[0].toUpperCase() +
-                                  s.tags.first.substring(1)
-                              : 'Movies',
+                          ? s.tags.first[0].toUpperCase() +
+                                s.tags.first.substring(1)
+                          : 'Movies',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -791,13 +868,17 @@ class _ShortReelItemState extends State<ShortReelItem>
               ),
               const SizedBox(width: 4),
               Container(
-                width: 28, height: 28,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ],
           ),
@@ -818,16 +899,22 @@ class _ShortReelItemState extends State<ShortReelItem>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_fmt(_position),
-                      style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500)),
-                  Text(_fmt(_duration),
-                      style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500)),
+                  Text(
+                    _fmt(_position),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    _fmt(_duration),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -837,18 +924,19 @@ class _ShortReelItemState extends State<ShortReelItem>
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 3,
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 7),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 16),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 7,
+                  ),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 16,
+                  ),
                   activeTrackColor: Colors.white,
                   inactiveTrackColor: Colors.white30,
                   thumbColor: Colors.white,
                   overlayColor: Colors.white24,
                 ),
                 child: Slider(
-                  value:
-                      (_seeking ? _seekValue : _progress).clamp(0.0, 1.0),
+                  value: (_seeking ? _seekValue : _progress).clamp(0.0, 1.0),
                   onChangeStart: _onSeekStart,
                   onChanged: _onSeekUpdate,
                   onChangeEnd: _onSeekEnd,
@@ -881,9 +969,9 @@ class _BufferingSpinner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      width: 36, height: 36,
-      child:
-          CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5),
+      width: 36,
+      height: 36,
+      child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5),
     );
   }
 }
@@ -949,9 +1037,10 @@ class _HeartBurstState extends State<_HeartBurst>
             size: 80,
             shadows: [
               Shadow(
-                  color: Colors.black54,
-                  blurRadius: 20,
-                  offset: Offset(0, 4)),
+                color: Colors.black54,
+                blurRadius: 20,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
         ),

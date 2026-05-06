@@ -49,6 +49,7 @@ class _ShortsViewState extends State<_ShortsView>
   final PageController _controller = PageController();
   bool _appActive = true;
   bool _detailOpen = false;
+  bool _loadingContent = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -84,38 +85,43 @@ class _ShortsViewState extends State<_ShortsView>
   void _refresh() {
     context.read<ShortsBloc>().add(const ShortsRefresh());
     if (_controller.hasClients) {
-      _controller.animateToPage(0,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic);
+      _controller.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
   void _showNotice(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: AppColors.surface,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.surface,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _openContent(ShortEntity short) async {
+    setState(() {
+      _detailOpen = true;
+      _loadingContent = true;
+    });
+
     final provider = short.provider.trim();
     if (provider.isNotEmpty) {
       await getIt<HiveService>().saveCurrentProvider(provider);
     }
     if (!mounted) return;
 
-    setState(() => _detailOpen = true);
-
     var contentUrl = short.contentUrl.trim();
 
     // Feed may not return contentUrl — fetch full short by ID
     if (contentUrl.isEmpty && short.id.isNotEmpty) {
       final result = await getIt<GetShortUseCase>()(short.id);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       if (result case Success<ShortEntity>(:final value)) {
         contentUrl = value.contentUrl.trim();
         final p = value.provider.trim();
@@ -126,11 +132,10 @@ class _ShortsViewState extends State<_ShortsView>
       if (!mounted) return;
     }
 
+    if (mounted) setState(() => _loadingContent = false);
+
     if (contentUrl.isNotEmpty) {
-      await context.push(
-        '/detail',
-        extra: DetailArgs(contentUrl: contentUrl),
-      );
+      await context.push('/detail', extra: DetailArgs(contentUrl: contentUrl));
       if (mounted) setState(() => _detailOpen = false);
       return;
     }
@@ -157,121 +162,169 @@ class _ShortsViewState extends State<_ShortsView>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: BlocConsumer<ShortsBloc, ShortsState>(
-        listenWhen: (previous, current) {
-          return previous is ShortsLoaded &&
-              current is ShortsLoaded &&
-              previous.noticeId != current.noticeId &&
-              current.notice != null;
-        },
-        listener: (context, state) {
-          if (state is ShortsLoaded && state.notice != null) {
-            _showNotice(state.notice!);
-          }
-        },
-        builder: (context, state) {
-          return switch (state) {
-            ShortsInitial() || ShortsLoading() => const ShortsLoadingView(),
-            ShortsError(:final message) => ShortsErrorView(
-                message: message,
-                onRetry: () =>
-                    context.read<ShortsBloc>().add(const ShortsLoad())),
-            ShortsLoaded(:final items) => items.isEmpty
-                ? const ShortsEmptyView()
-                : Stack(
-                    children: [
-                      PageView.builder(
-                        controller: _controller,
-                        scrollDirection: Axis.vertical,
-                        itemCount:
-                            items.length + (state.loadingMore ? 1 : 0),
-                        onPageChanged: (index) {
-                          if (index < items.length) {
-                            context
-                                .read<ShortsBloc>()
-                                .add(ShortsPageChanged(index));
-                          }
-                        },
-                        itemBuilder: (context, index) {
-                          if (index >= items.length) {
-                            return const ColoredBox(
-                              color: Colors.black,
-                              child: Center(
-                                child: SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white70,
-                                    strokeWidth: 2.5,
+      body: Stack(
+        children: [
+          BlocConsumer<ShortsBloc, ShortsState>(
+            listenWhen: (previous, current) {
+              return previous is ShortsLoaded &&
+                  current is ShortsLoaded &&
+                  previous.noticeId != current.noticeId &&
+                  current.notice != null;
+            },
+            listener: (context, state) {
+              if (state is ShortsLoaded && state.notice != null) {
+                _showNotice(state.notice!);
+              }
+            },
+            builder: (context, state) {
+              return switch (state) {
+                ShortsInitial() || ShortsLoading() => const ShortsLoadingView(),
+                ShortsError(:final message) => ShortsErrorView(
+                  message: message,
+                  onRetry: () =>
+                      context.read<ShortsBloc>().add(const ShortsLoad()),
+                ),
+                ShortsLoaded(:final items) =>
+                  items.isEmpty
+                      ? const ShortsEmptyView()
+                      : Stack(
+                          children: [
+                            PageView.builder(
+                              controller: _controller,
+                              scrollDirection: Axis.vertical,
+                              itemCount:
+                                  items.length + (state.loadingMore ? 1 : 0),
+                              onPageChanged: (index) {
+                                if (index < items.length) {
+                                  context.read<ShortsBloc>().add(
+                                    ShortsPageChanged(index),
+                                  );
+                                }
+                              },
+                              itemBuilder: (context, index) {
+                                if (index >= items.length) {
+                                  return const ColoredBox(
+                                    color: Colors.black,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 32,
+                                        height: 32,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white70,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final item = items[index];
+                                return ShortReelItem(
+                                  key: ValueKey('${item.id}:${item.videoUrl}'),
+                                  short: item,
+                                  active:
+                                      _playbackActive &&
+                                      state.activeIndex == index,
+                                  likeLoading: state.loadingLikeIds.contains(
+                                    item.id,
+                                  ),
+                                  onLike: () => context.read<ShortsBloc>().add(
+                                    ShortsLikeToggled(item.id),
+                                  ),
+                                  onOpenDetail: () => _openContent(item),
+                                );
+                              },
+                            ),
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              child: IgnorePointer(
+                                child: Container(
+                                  height: topPad + 50,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.black.withValues(alpha: 0.5),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                  padding: EdgeInsets.only(
+                                    top: topPad + 12,
+                                    left: 16,
+                                  ),
+                                  alignment: Alignment.topLeft,
+                                  child: const Text(
+                                    'Shorts',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black87,
+                                          blurRadius: 8,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            );
-                          }
-                          final item = items[index];
-                          return ShortReelItem(
-                            short: item,
-                            active: _playbackActive &&
-                                state.activeIndex == index,
-                            likeLoading:
-                                state.loadingLikeIds.contains(item.id),
-                            onLike: () => context
-                                .read<ShortsBloc>()
-                                .add(ShortsLikeToggled(item.id)),
-                            onOpenDetail: () => _openContent(item),
-                          );
-                        },
-                      ),
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: IgnorePointer(
-                          child: Container(
-                            height: topPad + 50,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.5),
-                                  Colors.transparent,
-                                ],
-                              ),
                             ),
-                            padding: EdgeInsets.only(
-                                top: topPad + 12, left: 16),
-                            alignment: Alignment.topLeft,
-                            child: const Text(
-                              'Shorts',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                shadows: [
-                                  Shadow(
-                                      color: Colors.black87, blurRadius: 8),
-                                ],
+                            if (state.refreshing)
+                              Positioned(
+                                top: topPad,
+                                left: 0,
+                                right: 0,
+                                child: const LinearProgressIndicator(
+                                  minHeight: 2,
+                                  color: AppColors.primary,
+                                  backgroundColor: Colors.transparent,
+                                ),
                               ),
-                            ),
-                          ),
+                          ],
                         ),
-                      ),
-                      if (state.refreshing)
-                        Positioned(
-                          top: topPad,
-                          left: 0,
-                          right: 0,
-                          child: const LinearProgressIndicator(
-                            minHeight: 2,
-                            color: AppColors.primary,
-                            backgroundColor: Colors.transparent,
-                          ),
-                        ),
-                    ],
+              };
+            },
+          ),
+          if (_loadingContent)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
                   ),
-          };
-        },
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        ),
+                        SizedBox(height: 14),
+                        Text(
+                          'Opening...',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

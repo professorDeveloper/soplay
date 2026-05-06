@@ -66,14 +66,23 @@ class HiveService {
       _authBox.delete(AppConstants.malTokenKey);
 
   String getCurrentProvider() {
-    return _settingsBox.get(
-      AppConstants.currentProviderKey,
-      defaultValue: '',
-    );
+    return _settingsBox.get(AppConstants.currentProviderKey, defaultValue: '');
   }
 
   Future<void> saveCurrentProvider(String providerId) async {
     await _settingsBox.put(AppConstants.currentProviderKey, providerId);
+  }
+
+  bool get hasSeenShortsRefreshShowcase {
+    return _settingsBox.get(
+          AppConstants.shortsRefreshShowcaseSeenKey,
+          defaultValue: false,
+        ) ==
+        true;
+  }
+
+  Future<void> markShortsRefreshShowcaseSeen() async {
+    await _settingsBox.put(AppConstants.shortsRefreshShowcaseSeenKey, true);
   }
 
   String getLanguage() {

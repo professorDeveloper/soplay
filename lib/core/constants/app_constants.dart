@@ -2,7 +2,7 @@ class AppConstants {
   AppConstants._();
 
   static const String baseUrl =
-      'https://authorities-allied-nil-gage.trycloudflare.com/api';
+      'https://compaq-possess-dependent-installing.trycloudflare.com/api';
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
   static const String productsBox = 'products_box';
@@ -14,9 +14,10 @@ class AppConstants {
   static const String themeModeKey = 'theme_mode';
   static const String languageKey = 'language';
   static const String currentProviderKey = 'current_provider';
+  static const String shortsRefreshShowcaseSeenKey =
+      'shorts_refresh_showcase_seen';
   static const String aniListTokenKey = 'anilist_token';
   static const String malTokenKey = 'mal_token';
   static const String preferredMediaLangKey = 'preferred_media_lang';
-
   static const String defaultMediaLang = 'sub';
 }

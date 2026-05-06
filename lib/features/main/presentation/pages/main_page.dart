@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
@@ -16,6 +18,7 @@ import 'package:soplay/features/profile/presentation/bloc/provider_state.dart';
 import 'package:soplay/features/search/presentation/blocs/search_bloc.dart';
 import 'package:soplay/features/search/presentation/pages/search_page.dart';
 import 'package:soplay/features/shorts/presentation/pages/shorts_page.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 import '../../../../core/navigation/nav_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
@@ -30,23 +33,38 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   static const int _shortsIndex = 2;
 
+  final GlobalKey _shortsRefreshShowcaseKey = GlobalKey();
   int _index = 0;
   int _shortsRefreshTick = 0;
   late final NavController _navController;
+  late final HiveService _hiveService;
   String? _lastProviderId;
+  bool _shortsShowcaseStarted = false;
 
   @override
   void initState() {
     super.initState();
     _navController = getIt<NavController>();
+    _hiveService = getIt<HiveService>();
     _navController.index.addListener(_onNavChange);
+    ShowcaseView.register(
+      blurValue: 1.5,
+      overlayColor: Colors.black,
+      overlayOpacity: 0.76,
+      onFinish: _markShortsShowcaseSeen,
+      onDismiss: (_) => _markShortsShowcaseSeen(),
+    );
   }
 
-  void _onNavChange() => setState(() => _index = _navController.index.value);
+  void _onNavChange() {
+    setState(() => _index = _navController.index.value);
+    _maybeShowShortsRefreshTip();
+  }
 
   @override
   void dispose() {
     _navController.index.removeListener(_onNavChange);
+    ShowcaseView.get().unregister();
     super.dispose();
   }
 
@@ -66,11 +84,37 @@ class _MainPageState extends State<MainPage> {
   void _onTabTap(int index) {
     setState(() => _index = index);
     _navController.goTo(index);
+    _maybeShowShortsRefreshTip();
   }
 
   void _refreshShorts() {
     if (_index != _shortsIndex) return;
     setState(() => _shortsRefreshTick++);
+  }
+
+  void _maybeShowShortsRefreshTip() {
+    if (_index != _shortsIndex ||
+        _shortsShowcaseStarted ||
+        _hiveService.hasSeenShortsRefreshShowcase) {
+      return;
+    }
+    _shortsShowcaseStarted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Future<void>.delayed(const Duration(milliseconds: 420), () {
+        if (!mounted) return;
+        if (_index != _shortsIndex) {
+          _shortsShowcaseStarted = false;
+          return;
+        }
+        ShowcaseView.get().startShowCase([_shortsRefreshShowcaseKey]);
+      });
+    });
+  }
+
+  void _markShortsShowcaseSeen() {
+    if (_hiveService.hasSeenShortsRefreshShowcase) return;
+    unawaited(_hiveService.markShortsRefreshShowcaseSeen());
   }
 
   @override
@@ -106,6 +150,7 @@ class _MainPageState extends State<MainPage> {
             body: IndexedStack(index: _index, children: tabs),
             bottomNavigationBar: _SoplayBottomNav(
               index: _index,
+              shortsShowcaseKey: _shortsRefreshShowcaseKey,
               onTap: _onTabTap,
               onShortsDoubleTap: _refreshShorts,
             ),
@@ -119,11 +164,13 @@ class _MainPageState extends State<MainPage> {
 class _SoplayBottomNav extends StatelessWidget {
   const _SoplayBottomNav({
     required this.index,
+    required this.shortsShowcaseKey,
     required this.onTap,
     required this.onShortsDoubleTap,
   });
 
   final int index;
+  final GlobalKey shortsShowcaseKey;
   final ValueChanged<int> onTap;
   final VoidCallback onShortsDoubleTap;
 
@@ -187,6 +234,9 @@ class _SoplayBottomNav extends StatelessWidget {
                   child: _BottomNavButton(
                     item: _items[i],
                     selected: index == i,
+                    showcaseKey: i == _MainPageState._shortsIndex
+                        ? shortsShowcaseKey
+                        : null,
                     onTap: () => onTap(i),
                     onDoubleTap: i == _MainPageState._shortsIndex
                         ? onShortsDoubleTap
@@ -218,12 +268,14 @@ class _BottomNavButton extends StatefulWidget {
   const _BottomNavButton({
     required this.item,
     required this.selected,
+    required this.showcaseKey,
     required this.onTap,
     required this.onDoubleTap,
   });
 
   final _NavItem item;
   final bool selected;
+  final GlobalKey? showcaseKey;
   final VoidCallback onTap;
   final VoidCallback? onDoubleTap;
 
@@ -243,7 +295,7 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
   Widget build(BuildContext context) {
     final color = widget.selected ? Colors.white : const Color(0xFF7A7A7A);
 
-    return Semantics(
+    final button = Semantics(
       button: true,
       selected: widget.selected,
       label: widget.item.labelKey.tr(),
@@ -313,6 +365,147 @@ class _BottomNavButtonState extends State<_BottomNavButton> {
             ),
           ),
         ),
+      ),
+    );
+
+    final key = widget.showcaseKey;
+    if (key == null) return button;
+
+    return Showcase.withWidget(
+      key: key,
+      tooltipPosition: TooltipPosition.top,
+      targetBorderRadius: BorderRadius.circular(18),
+      targetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      targetTooltipGap: 14,
+      overlayColor: Colors.black,
+      overlayOpacity: 0.76,
+      blurValue: 1.5,
+      container: const _ShortsRefreshShowcaseCard(),
+      child: button,
+    );
+  }
+}
+
+class _ShortsRefreshShowcaseCard extends StatelessWidget {
+  const _ShortsRefreshShowcaseCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 276,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212).withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.06),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE53935).withValues(alpha: 0.35),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  CupertinoIcons.arrow_2_circlepath,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Shorts refresh',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Shorts tabni ikki marta bosing. Feed yangilanadi va yangi videolar qo'yilib ketadi.",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Double tap',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => ShowcaseView.get().dismiss(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Tushunarli',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

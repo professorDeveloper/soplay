@@ -17,6 +17,7 @@ class ShortsRemoteDataSource {
     if (cursor != null) params['cursor'] = cursor;
     if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
 
+    params['shuffle'] = true;
     final response = await dio.get('/shorts/feed', queryParameters: params);
     final data = response.data;
 
