@@ -8,7 +8,7 @@ class AppTheme {
         brightness: Brightness.dark,
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.background,
-        colorScheme: const ColorScheme(
+        colorScheme: ColorScheme(
           brightness: Brightness.dark,
           primary: AppColors.primary,
           onPrimary: Colors.white,
@@ -185,12 +185,12 @@ class AppTheme {
           errorStyle: const TextStyle(color: AppColors.error, fontSize: 12),
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        dividerTheme: const DividerThemeData(
+        dividerTheme: DividerThemeData(
           color: AppColors.border,
           thickness: 1,
           space: 1,
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: AppColors.background,
           selectedItemColor: AppColors.textPrimary,
           unselectedItemColor: AppColors.textHint,
@@ -198,7 +198,7 @@ class AppTheme {
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),
-        navigationBarTheme: const NavigationBarThemeData(
+        navigationBarTheme: NavigationBarThemeData(
           backgroundColor: AppColors.background,
           indicatorColor: Color(0x33E50914),
           elevation: 0,
@@ -228,7 +228,7 @@ class AppTheme {
             return AppColors.surfaceVariant;
           }),
         ),
-        sliderTheme: const SliderThemeData(
+        sliderTheme: SliderThemeData(
           activeTrackColor: AppColors.primary,
           inactiveTrackColor: AppColors.surfaceVariant,
           thumbColor: AppColors.primary,
@@ -254,7 +254,7 @@ class AppTheme {
             fontSize: 14,
           ),
         ),
-        bottomSheetTheme: const BottomSheetThemeData(
+        bottomSheetTheme: BottomSheetThemeData(
           backgroundColor: AppColors.surface,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -296,7 +296,7 @@ class AppTheme {
           ),
           textStyle: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
         ),
-        expansionTileTheme: const ExpansionTileThemeData(
+        expansionTileTheme: ExpansionTileThemeData(
           backgroundColor: AppColors.surface,
           collapsedBackgroundColor: Colors.transparent,
           iconColor: AppColors.textSecondary,

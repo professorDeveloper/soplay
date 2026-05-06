@@ -154,7 +154,7 @@ class _BannerSlideContent extends StatelessWidget {
             ),
           ),
         ),
-        const Positioned(
+        Positioned(
           left: 0,
           right: 0,
           bottom: 0,
@@ -167,10 +167,10 @@ class _BannerSlideContent extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     AppColors.background,
-                    Color(0xBB181818),
-                    Color(0x00000000),
+                    const Color(0xBB181818),
+                    const Color(0x00000000),
                   ],
-                  stops: [0.0, 0.52, 1.0],
+                  stops: const [0.0, 0.52, 1.0],
                 ),
               ),
             ),

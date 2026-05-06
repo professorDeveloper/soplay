@@ -5,11 +5,13 @@ class DetailArgs {
   final MovieEntity? preview;
   final bool autoPlay;
   final int? resumeEpisodeIndex;
+  final String? provider;
 
   const DetailArgs({
     required this.contentUrl,
     this.preview,
     this.autoPlay = false,
     this.resumeEpisodeIndex,
+    this.provider,
   });
 }

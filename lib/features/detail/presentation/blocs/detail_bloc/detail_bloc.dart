@@ -15,7 +15,7 @@ class DetailBloc extends Bloc<DetailEvent, DetailState> {
 
   Future<void> _onLoad(DetailLoad event, Emitter<DetailState> emit) async {
     emit(const DetailLoading());
-    final result = await useCase(event.contentUrl);
+    final result = await useCase(event.contentUrl, provider: event.provider);
     switch (result) {
       case Success(:final value):
         emit(DetailLoaded(value));

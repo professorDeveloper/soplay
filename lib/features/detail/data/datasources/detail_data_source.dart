@@ -7,10 +7,13 @@ class DetailDataSource {
   final Dio dio;
   const DetailDataSource({required this.dio});
 
-  Future<DetailModel> getDetail(String contentUrl) async {
+  Future<DetailModel> getDetail(String contentUrl, {String? provider}) async {
     final response = await dio.get(
       '/contents/detail',
-      queryParameters: {'url': contentUrl},
+      queryParameters: {
+        'url': contentUrl,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
+      },
     );
     return DetailModel.fromJson(response.data as Map<String, dynamic>);
   }
@@ -20,6 +23,7 @@ class DetailDataSource {
     int page = 1,
     int size = 100,
     String sort = 'asc',
+    String? provider,
   }) async {
     final response = await dio.get(
       '/contents/episodes',
@@ -28,6 +32,7 @@ class DetailDataSource {
         'page': page,
         'size': size,
         'sort': sort,
+        if (provider != null && provider.isNotEmpty) 'provider': provider,
       },
     );
     return PlaybackModel.fromJson(response.data as Map<String, dynamic>);

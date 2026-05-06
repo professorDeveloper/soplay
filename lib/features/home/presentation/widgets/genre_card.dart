@@ -41,11 +41,11 @@ class GenreCard extends StatelessWidget {
                     ? Image.network(
                   genre.image,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const ColoredBox(
+                  errorBuilder: (_, _, _) => ColoredBox(
                     color: AppColors.surfaceVariant,
                   ),
                 )
-                    : const ColoredBox(color: AppColors.surfaceVariant),
+                    : ColoredBox(color: AppColors.surfaceVariant),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(

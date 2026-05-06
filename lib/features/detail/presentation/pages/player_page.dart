@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:floating/floating.dart';
@@ -14,6 +15,8 @@ import 'package:soplay/features/detail/domain/entities/player_args.dart';
 import 'package:soplay/features/detail/domain/entities/subtitle_entity.dart';
 import 'package:soplay/features/detail/domain/entities/video_source_entity.dart';
 import 'package:soplay/features/detail/domain/usecases/resolve_media_usecase.dart';
+import 'package:soplay/features/download/data/download_service.dart';
+import 'package:soplay/features/download/domain/entities/download_item.dart';
 import 'package:soplay/features/history/data/history_service.dart';
 import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:video_player/video_player.dart';
@@ -24,6 +27,14 @@ enum _PlayerFit { contain, cover, fill }
 enum _SidePanel { none, episodes, quality }
 
 enum _LoadingStage { resolving, loading }
+
+enum _SwipeType { brightness, volume }
+
+class _SwipeIndicator {
+  final _SwipeType type;
+  final double value;
+  const _SwipeIndicator(this.type, this.value);
+}
 
 const _kSubLang = 'sub';
 const _kDubLang = 'dub';
@@ -43,6 +54,7 @@ class _PlayerPageState extends State<PlayerPage>
   final ResolveMediaUseCase _resolve = getIt<ResolveMediaUseCase>();
   final HiveService _hive = getIt<HiveService>();
   final HistoryService _history = getIt<HistoryService>();
+  final DownloadService _downloads = getIt<DownloadService>();
   final Floating _floating = Floating();
   bool _isPip = false;
   bool _resumeAfterPause = false;
@@ -61,17 +73,28 @@ class _PlayerPageState extends State<PlayerPage>
   bool _initializing = true;
   _LoadingStage _stage = _LoadingStage.loading;
   bool _controlsVisible = true;
+  bool _locked = false;
   _SidePanel _panel = _SidePanel.none;
 
   String? _currentLang;
   List<String> _serverLangs = const [];
 
   List<SubtitleEntity> _subtitles = const [];
-  int _activeSubtitleIndex = -1; // -1 = off
+  int _activeSubtitleIndex = -1;
   ClosedCaptionFile? _captionFile;
 
   double _playbackSpeed = 1.0;
   _PlayerFit _fit = _PlayerFit.contain;
+  bool _isPortrait = false;
+
+  double _brightness = 0.5;
+  double _volume = 1.0;
+  final ValueNotifier<_SwipeIndicator?> _swipeIndicator =
+      ValueNotifier<_SwipeIndicator?>(null);
+
+  Offset? _dragStart;
+  bool? _dragIsHorizontal;
+  _SwipeType? _dragSwipeType;
 
   final ValueNotifier<_ScrubState?> _scrub =
       ValueNotifier<_ScrubState?>(null);
@@ -89,6 +112,7 @@ class _PlayerPageState extends State<PlayerPage>
 
   int _retryAttempts = 0;
   bool _autoRetrying = false;
+  final Stopwatch _playbackWatch = Stopwatch();
 
   @override
   void initState() {
@@ -204,7 +228,6 @@ class _PlayerPageState extends State<PlayerPage>
     switch (state) {
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
-        break;
       case AppLifecycleState.paused:
         if (c.value.isInitialized && c.value.isPlaying && !_isPip) {
           _resumeAfterPause = true;
@@ -247,21 +270,43 @@ class _PlayerPageState extends State<PlayerPage>
 
   Future<void> _enterFullscreen() async {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    try {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } catch (_) {}
     await WakelockPlus.enable();
   }
 
+  Future<void> _toggleOrientation() async {
+    _isPortrait = !_isPortrait;
+    try {
+      if (_isPortrait) {
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+      } else {
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+    } catch (_) {}
+    setState(() {});
+  }
+
   Future<void> _restoreSystemUi() async {
-    await SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.edgeToEdge,
-      overlays: SystemUiOverlay.values,
-    );
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    _isPortrait = false;
+    try {
+      await SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.edgeToEdge,
+        overlays: SystemUiOverlay.values,
+      );
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+    } catch (_) {}
     await WakelockPlus.disable();
   }
 
@@ -361,7 +406,6 @@ class _PlayerPageState extends State<PlayerPage>
           type: value.type,
           resumeAt: resumeAt,
         );
-        // Auto-select default subtitle
         if (subs.isNotEmpty) {
           final defaultIdx = subs.indexWhere((s) => s.isDefault);
           if (defaultIdx >= 0) {
@@ -392,6 +436,8 @@ class _PlayerPageState extends State<PlayerPage>
   }
 
   void _saveHistory() {
+    if (_playbackWatch.elapsed.inSeconds < 30) return;
+
     final contentUrl = widget.args.contentUrl;
     if (contentUrl == null || contentUrl.isEmpty) return;
     final c = _controller;
@@ -402,7 +448,6 @@ class _PlayerPageState extends State<PlayerPage>
         ? c.value.duration.inMilliseconds
         : 0;
 
-    // Don't save if at the very end — next-episode logic handles that
     if (durMs > 0 && posMs >= durMs - 2000) return;
 
     EpisodeEntity? ep;
@@ -513,36 +558,58 @@ class _PlayerPageState extends State<PlayerPage>
     }
 
     final stopwatch = Stopwatch()..start();
-    final uri = Uri.parse(url);
-    final mergedHeaders = <String, String>{
-      'User-Agent':
-          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-      'Accept': '*/*',
-      'Accept-Language': 'uz,ru;q=0.9,en;q=0.8',
-    };
-    final defaultReferer = _defaultRefererFor(widget.args.provider);
-    if (defaultReferer != null) mergedHeaders['Referer'] = defaultReferer;
-    mergedHeaders.addAll(headers);
-
+    final isFileUri = url.startsWith('file://');
+    final isLocal = url.startsWith('/') || isFileUri;
     final isHls = _isHlsType(type);
-    debugPrint('[PLAYER] loading url: $url');
-    debugPrint('[PLAYER] type: ${type ?? 'unknown'}');
-    debugPrint('[PLAYER] provider: ${widget.args.provider}');
-    debugPrint('[PLAYER] headers (${mergedHeaders.length}):');
-    mergedHeaders.forEach((k, v) {
-      debugPrint('[PLAYER]   $k: $v');
-    });
 
-    final controller = VideoPlayerController.networkUrl(
-      uri,
-      httpHeaders: mergedHeaders,
-      formatHint: isHls ? VideoFormat.hls : null,
-      videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
-    );
+    debugPrint('[PLAYER] loading url: $url');
+    debugPrint('[PLAYER] type: ${type ?? 'unknown'} local: $isLocal');
+
+    VideoPlayerController controller;
+    if (isLocal && isHls) {
+      final fileUri = isFileUri ? Uri.parse(url) : Uri.file(url);
+      controller = VideoPlayerController.networkUrl(
+        fileUri,
+        formatHint: VideoFormat.hls,
+        videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
+      );
+      _headers = const {};
+    } else if (isLocal) {
+      final file = isFileUri ? File(Uri.parse(url).toFilePath()) : File(url);
+      controller = VideoPlayerController.file(
+        file,
+        videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
+      );
+      _headers = const {};
+    } else {
+      final uri = Uri.parse(url);
+      final mergedHeaders = <String, String>{
+        'User-Agent':
+            'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'uz,ru;q=0.9,en;q=0.8',
+      };
+      final defaultReferer = _defaultRefererFor(widget.args.provider);
+      if (defaultReferer != null) mergedHeaders['Referer'] = defaultReferer;
+      mergedHeaders.addAll(headers);
+
+      debugPrint('[PLAYER] provider: ${widget.args.provider}');
+      debugPrint('[PLAYER] headers (${mergedHeaders.length}):');
+      mergedHeaders.forEach((k, v) {
+        debugPrint('[PLAYER]   $k: $v');
+      });
+
+      controller = VideoPlayerController.networkUrl(
+        uri,
+        httpHeaders: mergedHeaders,
+        formatHint: isHls ? VideoFormat.hls : null,
+        videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
+      );
+      _headers = mergedHeaders;
+    }
     _controller = controller;
     _videoUrl = url;
     _mediaType = type;
-    _headers = mergedHeaders;
 
     try {
       await controller.initialize();
@@ -581,9 +648,20 @@ class _PlayerPageState extends State<PlayerPage>
     } on PlatformException catch (e) {
       debugPrint('[PLAYER] platform exception ${e.code}: ${e.message}');
       if (!mounted) return;
-      final msg = e.code == 'channel-error'
-          ? 'Player not ready — please fully restart the app'
-          : (e.message ?? 'Could not load video');
+      final raw = e.message ?? '';
+      String msg;
+      if (e.code == 'channel-error') {
+        msg = 'Player not ready — please fully restart the app';
+      } else if (raw.contains('Cannot Decode') || raw.contains('-12906')) {
+        msg = 'This video format is not supported on your device. Try a different quality.';
+        if (!_autoFallbackUsed && _videoSources.length > 1) {
+          _autoRetrying = true;
+          _autoRetry();
+          return;
+        }
+      } else {
+        msg = raw.isEmpty ? 'Could not load video' : _humanizeError(raw);
+      }
       setState(() {
         _initializing = false;
         _errorMessage = msg;
@@ -618,6 +696,9 @@ class _PlayerPageState extends State<PlayerPage>
     if (lower.contains('http data source')) {
       return 'Network error — check your connection';
     }
+    if (lower.contains('cannot decode') || lower.contains('-12906') || lower.contains('coremediaerror')) {
+      return 'This video format is not supported on your device. Try a different quality.';
+    }
     return raw;
   }
 
@@ -628,7 +709,10 @@ class _PlayerPageState extends State<PlayerPage>
         l.contains('decoder') ||
         l.contains('renderer') ||
         l.contains('audio') ||
-        l.contains('codec');
+        l.contains('codec') ||
+        l.contains('cannot decode') ||
+        l.contains('-12906') ||
+        l.contains('coremediaerror');
   }
 
   void _onMajorChange() {
@@ -667,8 +751,10 @@ class _PlayerPageState extends State<PlayerPage>
       changed = true;
       if (_isPip) _refreshPipActions();
       if (v.isPlaying) {
+        _playbackWatch.start();
         _scheduleHistorySave();
       } else {
+        _playbackWatch.stop();
         _saveHistory();
       }
     }
@@ -683,12 +769,10 @@ class _PlayerPageState extends State<PlayerPage>
       if (isEnding) {
         if (widget.args.isSerial &&
             _episodeIndex + 1 < widget.args.episodes.length) {
-          // Episode finished — save history pointing to next episode
           _saveHistoryForNextEpisode();
           _loadEpisode(_episodeIndex + 1);
           return;
         }
-        // Last episode or movie finished — remove from "continue watching"
         final url = widget.args.contentUrl;
         if (url != null && url.isNotEmpty) {
           _history.remove(url);
@@ -791,6 +875,7 @@ class _PlayerPageState extends State<PlayerPage>
     _seekRippleController.dispose();
     _scrub.dispose();
     _speedBoost.dispose();
+    _swipeIndicator.dispose();
     final c = _controller;
     if (c != null) {
       c.removeListener(_onMajorChange);
@@ -1151,6 +1236,69 @@ class _PlayerPageState extends State<PlayerPage>
     );
   }
 
+  void _startDownload() {
+    final url = _videoUrl;
+    if (url == null || url.isEmpty) return;
+
+    EpisodeEntity? ep;
+    if (widget.args.isSerial &&
+        _episodeIndex >= 0 &&
+        _episodeIndex < widget.args.episodes.length) {
+      ep = widget.args.episodes[_episodeIndex];
+    }
+
+    final rawId = widget.args.isSerial && ep != null
+        ? '${widget.args.contentUrl ?? url}_ep${ep.episode}'
+        : widget.args.contentUrl ?? url;
+    final id = rawId.hashCode.toRadixString(36);
+
+    final existing = _downloads.get(id);
+    if (existing != null) {
+      if (existing.status == DownloadStatus.completed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Already downloaded'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (existing.status == DownloadStatus.downloading) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Download in progress'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    final item = DownloadItem(
+      id: id,
+      contentUrl: widget.args.contentUrl ?? '',
+      provider: widget.args.provider,
+      title: widget.args.title,
+      thumbnail: widget.args.thumbnail,
+      videoUrl: url,
+      localPath: '',
+      headers: _headers,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      isSerial: widget.args.isSerial,
+      episodeNumber: ep?.episode,
+      episodeLabel: ep?.label,
+    );
+
+    _downloads.startDownload(item);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Download started'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _openSettingsSheet() {
     final hasQualities = _videoSources.length > 1;
     final langs = _availableLangsForCurrentEpisode();
@@ -1251,6 +1399,15 @@ class _PlayerPageState extends State<PlayerPage>
                 value: 'Coming soon',
                 onTap: null,
               ),
+            _SettingsTile(
+              icon: Icons.download_rounded,
+              label: 'Download',
+              value: '',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _startDownload();
+              },
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -1410,28 +1567,26 @@ class _PlayerPageState extends State<PlayerPage>
           body: LayoutBuilder(
             builder: (context, constraints) => GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: _toggleControls,
-              onDoubleTapDown: (d) => _onDoubleTapDown(d, constraints),
-              onDoubleTap: () {},
-              onHorizontalDragStart: _onHDragStart,
-              onHorizontalDragUpdate: (d) => _onHDragUpdate(d, constraints),
-              onHorizontalDragEnd: _onHDragEnd,
-              onHorizontalDragCancel: _onHDragCancel,
-              onVerticalDragStart: (_) {},
-              onVerticalDragUpdate: (_) {},
-              onVerticalDragEnd: (_) {},
-              onLongPressStart: _onLongPressStart,
-              onLongPressEnd: _onLongPressEnd,
+              onTap: _locked ? null : _toggleControls,
+              onDoubleTapDown: _locked ? null : (d) => _onDoubleTapDown(d, constraints),
+              onDoubleTap: _locked ? null : () {},
+              onPanStart: _locked ? null : (d) => _onPanStart(d, constraints),
+              onPanUpdate: _locked ? null : (d) => _onPanUpdate(d, constraints),
+              onPanEnd: _locked ? null : _onPanEnd,
+              onPanCancel: _locked ? null : _onPanCancel,
+              onLongPressStart: _locked ? null : _onLongPressStart,
+              onLongPressEnd: _locked ? null : _onLongPressEnd,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   _buildVideoLayer(),
                   _buildSubtitleOverlay(),
-                  _buildSeekRipple(),
-                  _buildControlsOverlay(),
-                  _buildScrubOverlay(),
-                  _buildSpeedBoostBadge(),
-                  if (_panel != _SidePanel.none) _buildSidePanel(),
+                  if (!_locked) _buildSeekRipple(),
+                  if (_locked) _buildLockOverlay() else _buildControlsOverlay(),
+                  if (!_locked) _buildScrubOverlay(),
+                  if (!_locked) _buildSpeedBoostBadge(),
+                  if (!_locked) _buildSwipeIndicator(),
+                  if (!_locked && _panel != _SidePanel.none) _buildSidePanel(),
                 ],
               ),
             ),
@@ -1714,6 +1869,192 @@ class _PlayerPageState extends State<PlayerPage>
     );
   }
 
+  void _onPanStart(DragStartDetails d, BoxConstraints constraints) {
+    _dragStart = d.localPosition;
+    _dragIsHorizontal = null;
+    _dragSwipeType = null;
+  }
+
+  void _onPanUpdate(DragUpdateDetails d, BoxConstraints constraints) {
+    final start = _dragStart;
+    if (start == null) return;
+
+    if (_dragIsHorizontal == null) {
+      final dx = (d.localPosition.dx - start.dx).abs();
+      final dy = (d.localPosition.dy - start.dy).abs();
+      if (dx < 8 && dy < 8) return;
+      _dragIsHorizontal = dx > dy;
+
+      if (_dragIsHorizontal!) {
+        _onHDragStart(DragStartDetails(
+          globalPosition: d.globalPosition,
+          localPosition: d.localPosition,
+        ));
+      } else {
+        final isLeft = start.dx < constraints.maxWidth * 0.5;
+        _dragSwipeType = isLeft ? _SwipeType.brightness : _SwipeType.volume;
+        if (_dragSwipeType == _SwipeType.volume) {
+          _volume = _controller?.value.volume ?? 1.0;
+        }
+      }
+    }
+
+    if (_dragIsHorizontal!) {
+      _onHDragUpdate(d, constraints);
+    } else {
+      final delta = -(d.delta.dy) / (constraints.maxHeight * 0.7);
+      if (_dragSwipeType == _SwipeType.brightness) {
+        _brightness = (_brightness + delta).clamp(0.0, 1.0);
+        _swipeIndicator.value =
+            _SwipeIndicator(_SwipeType.brightness, _brightness);
+      } else {
+        _volume = (_volume + delta).clamp(0.0, 1.0);
+        _controller?.setVolume(_volume);
+        _swipeIndicator.value =
+            _SwipeIndicator(_SwipeType.volume, _volume);
+      }
+    }
+  }
+
+  void _onPanEnd(DragEndDetails d) {
+    if (_dragIsHorizontal == true) {
+      _onHDragEnd(d);
+    } else if (_dragSwipeType != null) {
+      final type = _dragSwipeType;
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (_swipeIndicator.value?.type == type) {
+          _swipeIndicator.value = null;
+        }
+      });
+    }
+    _dragStart = null;
+    _dragIsHorizontal = null;
+    _dragSwipeType = null;
+  }
+
+  void _onPanCancel() {
+    if (_dragIsHorizontal == true) _onHDragCancel();
+    _swipeIndicator.value = null;
+    _dragStart = null;
+    _dragIsHorizontal = null;
+    _dragSwipeType = null;
+  }
+
+  Widget _buildSwipeIndicator() {
+    return ValueListenableBuilder<_SwipeIndicator?>(
+      valueListenable: _swipeIndicator,
+      builder: (_, indicator, _) {
+        if (indicator == null) return const SizedBox.shrink();
+        final isBrightness = indicator.type == _SwipeType.brightness;
+        return Positioned(
+          top: 0,
+          bottom: 0,
+          left: isBrightness ? 48 : null,
+          right: isBrightness ? null : 48,
+          child: Center(
+            child: Container(
+              width: 40,
+              height: 140,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    isBrightness
+                        ? Icons.brightness_6_rounded
+                        : indicator.value > 0
+                            ? Icons.volume_up_rounded
+                            : Icons.volume_off_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: RotatedBox(
+                      quarterTurns: -1,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: indicator.value,
+                          minHeight: 4,
+                          backgroundColor: Colors.white24,
+                          valueColor:
+                              const AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${(indicator.value * 100).round()}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLockOverlay() {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Center(
+            child: GestureDetector(
+              onTap: () => setState(() => _locked = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tap to unlock',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildControlsOverlay() {
     if (_isPip) return const SizedBox.shrink();
     final c = _controller;
@@ -1766,6 +2107,23 @@ class _PlayerPageState extends State<PlayerPage>
                         ),
                         const SizedBox(width: 8),
                       ],
+                      _IconButton(
+                        icon: _isPortrait
+                            ? Icons.screen_lock_landscape_rounded
+                            : Icons.screen_lock_portrait_rounded,
+                        onTap: _toggleOrientation,
+                      ),
+                      const SizedBox(width: 8),
+                      _IconButton(
+                        icon: Icons.lock_outline_rounded,
+                        onTap: () => setState(() {
+                          _locked = true;
+                          _controlsVisible = false;
+                          _controlsAnimation.reverse();
+                          _hideTimer?.cancel();
+                        }),
+                      ),
+                      const SizedBox(width: 8),
                       _IconButton(
                         icon: Icons.picture_in_picture_alt_rounded,
                         onTap: _enterPip,
@@ -1927,44 +2285,46 @@ class _PlayerPageState extends State<PlayerPage>
                 },
               ),
               const SizedBox(height: 4),
-              Row(
-                children: [
-                  if (hasEpisodes)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (hasEpisodes)
+                      _BottomTextButton(
+                        icon: Icons.skip_previous_rounded,
+                        label: 'Previous',
+                        enabled: hasPrev,
+                        onTap: () => _loadEpisode(_episodeIndex - 1),
+                      ),
+                    if (hasEpisodes)
+                      _BottomTextButton(
+                        icon: Icons.skip_next_rounded,
+                        label: 'Next',
+                        enabled: hasNext,
+                        onTap: () => _loadEpisode(_episodeIndex + 1),
+                      ),
                     _BottomTextButton(
-                      icon: Icons.skip_previous_rounded,
-                      label: 'Previous',
-                      enabled: hasPrev,
-                      onTap: () => _loadEpisode(_episodeIndex - 1),
-                    ),
-                  if (hasEpisodes)
-                    _BottomTextButton(
-                      icon: Icons.skip_next_rounded,
-                      label: 'Next',
-                      enabled: hasNext,
-                      onTap: () => _loadEpisode(_episodeIndex + 1),
-                    ),
-                  _BottomTextButton(
-                    icon: Icons.speed_rounded,
-                    label: '${_playbackSpeed.toStringAsFixed(_playbackSpeed == _playbackSpeed.roundToDouble() ? 0 : 2)}x',
-                    enabled: true,
-                    onTap: _openSpeedSheet,
-                  ),
-                  const Spacer(),
-                  if (hasQualities)
-                    _BottomTextButton(
-                      icon: Icons.high_quality_rounded,
-                      label: _currentQuality ?? 'Quality',
+                      icon: Icons.speed_rounded,
+                      label: '${_playbackSpeed.toStringAsFixed(_playbackSpeed == _playbackSpeed.roundToDouble() ? 0 : 2)}x',
                       enabled: true,
-                      onTap: () => _openPanel(_SidePanel.quality),
+                      onTap: _openSpeedSheet,
                     ),
-                  if (hasEpisodes)
-                    _BottomTextButton(
-                      icon: Icons.list_rounded,
-                      label: 'Episodes',
-                      enabled: true,
-                      onTap: () => _openPanel(_SidePanel.episodes),
-                    ),
-                ],
+                    if (hasQualities)
+                      _BottomTextButton(
+                        icon: Icons.high_quality_rounded,
+                        label: _currentQuality ?? 'Quality',
+                        enabled: true,
+                        onTap: () => _openPanel(_SidePanel.quality),
+                      ),
+                    if (hasEpisodes)
+                      _BottomTextButton(
+                        icon: Icons.list_rounded,
+                        label: 'Episodes',
+                        enabled: true,
+                        onTap: () => _openPanel(_SidePanel.episodes),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),

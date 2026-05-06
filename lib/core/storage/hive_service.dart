@@ -103,4 +103,28 @@ class HiveService {
   Future<void> savePreferredMediaLang(String lang) async {
     await _settingsBox.put(AppConstants.preferredMediaLangKey, lang);
   }
+
+  bool get hasTelegramPromoSeen {
+    return _settingsBox.get(AppConstants.telegramPromoSeenKey, defaultValue: false) == true;
+  }
+
+  Future<void> markTelegramPromoSeen() async {
+    await _settingsBox.put(AppConstants.telegramPromoSeenKey, true);
+  }
+
+  bool get isAmoledMode {
+    return _settingsBox.get(AppConstants.amoledModeKey, defaultValue: false) == true;
+  }
+
+  Future<void> setAmoledMode(bool enabled) async {
+    await _settingsBox.put(AppConstants.amoledModeKey, enabled);
+  }
+
+  bool get hasOnboardingSeen {
+    return _settingsBox.get(AppConstants.onboardingSeenKey, defaultValue: false) == true;
+  }
+
+  Future<void> markOnboardingSeen() async {
+    await _settingsBox.put(AppConstants.onboardingSeenKey, true);
+  }
 }

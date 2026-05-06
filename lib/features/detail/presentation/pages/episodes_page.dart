@@ -104,6 +104,7 @@ class _EpisodesPageState extends State<EpisodesPage> {
       page: _page + 1,
       size: _size,
       sort: _sort,
+      provider: widget.args.provider,
     );
 
     if (!mounted) return;
@@ -138,6 +139,7 @@ class _EpisodesPageState extends State<EpisodesPage> {
       page: 1,
       size: _size,
       sort: next,
+      provider: widget.args.provider,
     );
     if (!mounted) return;
     switch (result) {

@@ -6,5 +6,6 @@ abstract class DetailEvent {
 
 class DetailLoad extends DetailEvent {
   final String contentUrl;
-  const DetailLoad(this.contentUrl);
+  final String? provider;
+  const DetailLoad(this.contentUrl, {this.provider});
 }

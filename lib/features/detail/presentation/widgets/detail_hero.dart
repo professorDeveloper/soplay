@@ -27,7 +27,7 @@ class DetailHeroBackground extends StatelessWidget {
             ),
           ),
         ),
-        const Positioned(
+        Positioned(
           left: 0,
           right: 0,
           bottom: 0,
@@ -40,10 +40,10 @@ class DetailHeroBackground extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     AppColors.background,
-                    Color(0xEE181818),
-                    Color(0x00000000),
+                    const Color(0xEE181818),
+                    const Color(0x00000000),
                   ],
-                  stops: [0.0, 0.5, 1.0],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),

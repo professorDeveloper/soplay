@@ -6,6 +6,6 @@ class GetDetailUseCase {
   final DetailRepository repository;
   const GetDetailUseCase(this.repository);
 
-  Future<Result<DetailEntity>> call(String contentUrl) =>
-      repository.getDetail(contentUrl);
+  Future<Result<DetailEntity>> call(String contentUrl, {String? provider}) =>
+      repository.getDetail(contentUrl, provider: provider);
 }

@@ -19,7 +19,7 @@ class EpisodesBloc extends Bloc<EpisodesEvent, EpisodesState> {
     Emitter<EpisodesState> emit,
   ) async {
     emit(const EpisodesLoading());
-    final result = await useCase(event.contentUrl);
+    final result = await useCase(event.contentUrl, provider: event.provider);
     switch (result) {
       case Success(:final value):
         emit(EpisodesLoaded(value));

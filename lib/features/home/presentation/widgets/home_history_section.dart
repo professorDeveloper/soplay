@@ -71,6 +71,7 @@ class _HistoryCard extends StatelessWidget {
               contentUrl: item.contentUrl,
               autoPlay: true,
               resumeEpisodeIndex: item.episodeIndex,
+              provider: item.provider,
             ),
           );
         }

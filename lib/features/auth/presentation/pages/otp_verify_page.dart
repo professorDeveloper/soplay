@@ -110,8 +110,8 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
             _startCountdown(state.cooldownUntil);
             if (state.justResent) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Code resent. Check your email.'),
+                SnackBar(
+                  content: const Text('Code resent. Check your email.'),
                   backgroundColor: AppColors.surface,
                   behavior: SnackBarBehavior.floating,
                 ),

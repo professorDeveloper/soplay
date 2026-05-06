@@ -11,11 +11,13 @@ class GetEpisodesUseCase {
     int page = 1,
     int size = 100,
     String sort = 'asc',
+    String? provider,
   }) =>
       repository.getEpisodes(
         contentUrl,
         page: page,
         size: size,
         sort: sort,
+        provider: provider,
       );
 }

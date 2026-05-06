@@ -16,6 +16,7 @@ import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite
 import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_event.dart';
 import 'package:soplay/features/detail/presentation/blocs/favorite_bloc/favorite_state.dart';
 import 'package:soplay/features/history/data/history_service.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_cast_tab.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_comments_tab.dart';
 import 'package:soplay/features/detail/presentation/widgets/detail_hero.dart';
@@ -33,13 +34,14 @@ class DetailPage extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => getIt<DetailBloc>()..add(DetailLoad(args.contentUrl)),
+          create: (_) => getIt<DetailBloc>()..add(DetailLoad(args.contentUrl, provider: args.provider)),
         ),
         BlocProvider(create: (_) => getIt<EpisodesBloc>()),
         BlocProvider(create: (_) => getIt<FavoriteBloc>()),
       ],
       child: _DetailScaffold(
         contentUrl: args.contentUrl,
+        provider: args.provider,
         autoPlay: args.autoPlay,
         resumeEpisodeIndex: args.resumeEpisodeIndex,
       ),
@@ -50,10 +52,12 @@ class DetailPage extends StatelessWidget {
 class _DetailScaffold extends StatelessWidget {
   const _DetailScaffold({
     required this.contentUrl,
+    this.provider,
     this.autoPlay = false,
     this.resumeEpisodeIndex,
   });
   final String contentUrl;
+  final String? provider;
   final bool autoPlay;
   final int? resumeEpisodeIndex;
 
@@ -102,6 +106,7 @@ class _DetailScaffold extends StatelessWidget {
                       }
                       return _DetailView(
                         detail: detail,
+                        provider: provider,
                         autoPlay: autoPlay,
                         resumeEpisodeIndex: resumeEpisodeIndex,
                       );
@@ -110,7 +115,7 @@ class _DetailScaffold extends StatelessWidget {
                 DetailError(:final message) => _ErrorView(
                   message: message,
                   onRetry: () =>
-                      context.read<DetailBloc>().add(DetailLoad(contentUrl)),
+                      context.read<DetailBloc>().add(DetailLoad(contentUrl, provider: provider)),
                   onBack: () => _goBack(context),
                 ),
                 _ => const SizedBox.shrink(),
@@ -134,10 +139,12 @@ class _DetailScaffold extends StatelessWidget {
 class _DetailView extends StatefulWidget {
   const _DetailView({
     required this.detail,
+    this.provider,
     this.autoPlay = false,
     this.resumeEpisodeIndex,
   });
   final DetailEntity detail;
+  final String? provider;
   final bool autoPlay;
   final int? resumeEpisodeIndex;
 
@@ -285,7 +292,10 @@ class _DetailViewState extends State<_DetailView>
   void _onPrimaryAction() {
     final state = context.read<EpisodesBloc>().state;
     if (state is EpisodesLoading) return;
-    context.read<EpisodesBloc>().add(EpisodesLoad(widget.detail.contentUrl));
+    context.read<EpisodesBloc>().add(EpisodesLoad(
+      widget.detail.contentUrl,
+      provider: widget.provider,
+    ));
   }
 
   void _toggleMyList() {
@@ -299,7 +309,11 @@ class _DetailViewState extends State<_DetailView>
     );
   }
 
-  void _onShare() => _showSnack('Share link copied');
+  void _onShare() {
+    final url = Uri.encodeFull(widget.detail.contentUrl);
+    final link = 'https://sozo.azamov.me/detail?url=$url';
+    Share.share('${widget.detail.title}\n$link');
+  }
 
   void _handlePlayback(PlaybackEntity playback) {
     if (playback.isSerial) {
@@ -353,11 +367,9 @@ class _DetailViewState extends State<_DetailView>
       return;
     }
     Duration resumePos = Duration.zero;
-    if (widget.autoPlay) {
-      final historyItem = getIt<HistoryService>().get(widget.detail.contentUrl);
-      if (historyItem != null) {
-        resumePos = Duration(milliseconds: historyItem.positionMs);
-      }
+    final historyItem = getIt<HistoryService>().get(widget.detail.contentUrl);
+    if (historyItem != null) {
+      resumePos = Duration(milliseconds: historyItem.positionMs);
     }
     context.push(
       '/player',
@@ -887,7 +899,7 @@ class _ErrorView extends StatelessWidget {
                 child: Container(
                   width: 38,
                   height: 38,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.surfaceVariant,
                   ),

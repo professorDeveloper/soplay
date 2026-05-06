@@ -6,16 +6,16 @@ class MyListBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF161616), AppColors.background, Color(0xFF101010)],
-          stops: [0, 0.42, 1],
+          colors: [const Color(0xFF161616), AppColors.background, const Color(0xFF101010)],
+          stops: const [0, 0.42, 1],
         ),
       ),
-      child: SizedBox.expand(),
+      child: const SizedBox.expand(),
     );
   }
 }

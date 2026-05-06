@@ -11,9 +11,9 @@ class DetailRepositoryImpl implements DetailRepository {
   const DetailRepositoryImpl(this.dataSource);
 
   @override
-  Future<Result<DetailEntity>> getDetail(String contentUrl) async {
+  Future<Result<DetailEntity>> getDetail(String contentUrl, {String? provider}) async {
     try {
-      return Success(await dataSource.getDetail(contentUrl));
+      return Success(await dataSource.getDetail(contentUrl, provider: provider));
     } on DioException catch (e) {
       return Failure(Exception(_messageFrom(e)));
     } catch (e) {
@@ -27,6 +27,7 @@ class DetailRepositoryImpl implements DetailRepository {
     int page = 1,
     int size = 100,
     String sort = 'asc',
+    String? provider,
   }) async {
     try {
       return Success(
@@ -35,6 +36,7 @@ class DetailRepositoryImpl implements DetailRepository {
           page: page,
           size: size,
           sort: sort,
+          provider: provider,
         ),
       );
     } on DioException catch (e) {

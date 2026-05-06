@@ -8,7 +8,6 @@ import 'package:soplay/features/history/domain/entities/history_item.dart';
 class HistoryService {
   static const int _maxItems = 50;
 
-  /// Increments on every save/remove/clear so listeners can reload.
   final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
   Box get _box => Hive.box(AppConstants.historyBox);

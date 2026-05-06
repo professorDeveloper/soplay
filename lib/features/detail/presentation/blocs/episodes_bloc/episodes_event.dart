@@ -6,7 +6,8 @@ abstract class EpisodesEvent {
 
 class EpisodesLoad extends EpisodesEvent {
   final String contentUrl;
-  const EpisodesLoad(this.contentUrl);
+  final String? provider;
+  const EpisodesLoad(this.contentUrl, {this.provider});
 }
 
 class EpisodesReset extends EpisodesEvent {

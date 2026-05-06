@@ -5,6 +5,7 @@ class AppConstants {
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
   static const String historyBox = 'history_box';
+  static const String downloadBox = 'download_box';
   static const String productsBox = 'products_box';
   static const String cartBox = 'cart_box';
 
@@ -20,4 +21,7 @@ class AppConstants {
   static const String malTokenKey = 'mal_token';
   static const String preferredMediaLangKey = 'preferred_media_lang';
   static const String defaultMediaLang = 'sub';
+  static const String telegramPromoSeenKey = 'telegram_promo_seen';
+  static const String amoledModeKey = 'amoled_mode';
+  static const String onboardingSeenKey = 'onboarding_seen';
 }

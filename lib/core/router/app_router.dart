@@ -9,6 +9,8 @@ import 'package:soplay/features/detail/presentation/pages/actor_page.dart';
 import 'package:soplay/features/detail/presentation/pages/detail_page.dart';
 import 'package:soplay/features/detail/presentation/pages/episodes_page.dart';
 import 'package:soplay/features/detail/presentation/pages/player_page.dart';
+import 'package:soplay/features/download/presentation/pages/downloads_page.dart';
+import 'package:soplay/features/history/presentation/pages/history_page.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/main/presentation/pages/main_page.dart';
 import 'package:soplay/features/splash/presentation/pages/splash_page.dart';
@@ -37,8 +39,11 @@ class AppRouter {
       GoRoute(
         path: '/detail',
         builder: (context, state) {
-          final args = state.extra as DetailArgs;
-          return DetailPage(args: args);
+          // Support deep link: /detail?url=<contentUrl>
+          final extra = state.extra;
+          if (extra is DetailArgs) return DetailPage(args: extra);
+          final url = state.uri.queryParameters['url'] ?? '';
+          return DetailPage(args: DetailArgs(contentUrl: url));
         },
       ),
       GoRoute(
@@ -61,6 +66,14 @@ class AppRouter {
           final args = state.extra as PlayerArgs;
           return PlayerPage(args: args);
         },
+      ),
+      GoRoute(
+        path: '/history',
+        builder: (context, state) => const HistoryPage(),
+      ),
+      GoRoute(
+        path: '/downloads',
+        builder: (context, state) => const DownloadsPage(),
       ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
       GoRoute(path: '/main', builder: (context, state) => const MainPage()),

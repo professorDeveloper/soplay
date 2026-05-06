@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/auth/domain/entities/user_entity.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_event.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_state.dart';
-import 'package:soplay/features/detail/domain/entities/detail_args.dart';
+import 'package:soplay/features/download/data/download_service.dart';
 import 'package:soplay/features/history/data/history_service.dart';
-import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:soplay/features/profile/domain/entities/provider_entity.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_bloc.dart';
 import 'package:soplay/features/profile/presentation/bloc/provider_event.dart';
@@ -408,9 +408,9 @@ class _ProvidersSheet extends StatelessWidget {
       maxChildSize: maxSize,
       expand: false,
       builder: (ctx, scrollController) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: BlocBuilder<ProviderBloc, ProviderState>(
           builder: (context, state) {
@@ -632,69 +632,31 @@ class _WatchHistorySection extends StatefulWidget {
 
 class _WatchHistorySectionState extends State<_WatchHistorySection> {
   final HistoryService _historyService = getIt<HistoryService>();
-  List<HistoryItem> _items = const [];
-  bool _expanded = false;
+  final DownloadService _downloadService = getIt<DownloadService>();
+  int _historyCount = 0;
+  int _downloadCount = 0;
 
   @override
   void initState() {
     super.initState();
     _historyService.revision.addListener(_reload);
+    _downloadService.revision.addListener(_reload);
     _reload();
   }
 
   @override
   void dispose() {
     _historyService.revision.removeListener(_reload);
+    _downloadService.revision.removeListener(_reload);
     super.dispose();
   }
 
   void _reload() {
-    final items = _historyService.getAll();
     if (!mounted) return;
-    setState(() => _items = items);
-  }
-
-  void _clearHistory() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Clear History',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to clear your watch history?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _historyService.clearAll();
-            },
-            child: const Text(
-              'Clear',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      _historyCount = _historyService.getAll().length;
+      _downloadCount = _downloadService.getAll().length;
+    });
   }
 
   @override
@@ -704,7 +666,7 @@ class _WatchHistorySectionState extends State<_WatchHistorySection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionLabel('WATCH HISTORY'),
+          const _SectionLabel('ACTIVITY'),
           const SizedBox(height: 8),
           _SectionCard(
             children: [
@@ -714,65 +676,49 @@ class _WatchHistorySectionState extends State<_WatchHistorySection> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '${_items.length}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
+                    if (_historyCount > 0)
+                      Text(
+                        '$_historyCount',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 4),
-                    Icon(
-                      _expanded
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
+                    const Icon(
+                      Icons.chevron_right_rounded,
                       color: AppColors.textHint,
                       size: 20,
                     ),
                   ],
                 ),
-                onTap: _items.isEmpty
-                    ? null
-                    : () => setState(() => _expanded = !_expanded),
+                onTap: () => context.push('/history'),
               ),
-              if (_expanded && _items.isNotEmpty) ...[
-                const Divider(color: AppColors.divider, height: 1),
-                for (var i = 0; i < _items.length; i++) ...[
-                  _HistoryListTile(item: _items[i]),
-                  if (i < _items.length - 1)
-                    Divider(
-                      color: AppColors.divider,
-                      height: 1,
-                      indent: 62,
-                    ),
-                ],
-                const Divider(color: AppColors.divider, height: 1),
-                InkWell(
-                  onTap: _clearHistory,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.delete_outline_rounded,
-                          color: AppColors.primary,
-                          size: 16,
+              const Divider(color: AppColors.divider, height: 1),
+              _Tile(
+                icon: Icons.download_rounded,
+                title: 'Downloads',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_downloadCount > 0)
+                      Text(
+                        '$_downloadCount',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
                         ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Clear History',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                      ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textHint,
+                      size: 20,
                     ),
-                  ),
+                  ],
                 ),
-              ],
+                onTap: () => context.push('/downloads'),
+              ),
             ],
           ),
         ],
@@ -781,131 +727,129 @@ class _WatchHistorySectionState extends State<_WatchHistorySection> {
   }
 }
 
-class _HistoryListTile extends StatelessWidget {
-  const _HistoryListTile({required this.item});
-  final HistoryItem item;
+class _AboutSection extends StatelessWidget {
+  const _AboutSection();
 
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        if (item.contentUrl.isNotEmpty) {
-          context.push(
-            '/detail',
-            extra: DetailArgs(
-              contentUrl: item.contentUrl,
-              autoPlay: true,
-              resumeEpisodeIndex: item.episodeIndex,
-            ),
-          );
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: SizedBox(
+  Future<void> _open(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _showDeveloper(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
                 width: 40,
-                height: 56,
-                child: item.thumbnail != null && item.thumbnail!.isNotEmpty
-                    ? Image.network(
-                        item.thumbnail!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          color: AppColors.surfaceVariant,
-                          child: const Icon(
-                            Icons.movie_outlined,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.network(
+                  'https://avatars.githubusercontent.com/u/108933534?v=4',
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    width: 56,
+                    height: 56,
+                    color: AppColors.primary,
+                    child: const Center(
+                      child: Text(
+                        'AX',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Azamov X',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Mobile Developer',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _open('https://t.me/ackles'),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.telegram,
+                            color: Color(0xFF2AABEE),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            '@ackles',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(
+                            Icons.open_in_new_rounded,
                             color: AppColors.textHint,
                             size: 16,
                           ),
-                        ),
-                      )
-                    : Container(
-                        color: AppColors.surfaceVariant,
-                        child: const Icon(
-                          Icons.movie_outlined,
-                          color: AppColors.textHint,
-                          size: 16,
-                        ),
+                        ],
                       ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  if (item.isSerial && item.episodeNumber != null)
-                    Text(
-                      'Episode ${item.episodeNumber}${item.episodeLabel != null && item.episodeLabel!.trim().isNotEmpty ? ' · ${item.episodeLabel}' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  if (item.progress > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(1.5),
-                        child: LinearProgressIndicator(
-                          value: item.progress,
-                          minHeight: 3,
-                          backgroundColor: AppColors.divider,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _timeAgo(item.watchedAt),
-              style: const TextStyle(
-                color: AppColors.textHint,
-                fontSize: 10,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-
-  String _timeAgo(int ms) {
-    final diff = DateTime.now().millisecondsSinceEpoch - ms;
-    final minutes = diff ~/ 60000;
-    if (minutes < 1) return 'now';
-    if (minutes < 60) return '${minutes}m';
-    final hours = minutes ~/ 60;
-    if (hours < 24) return '${hours}h';
-    final days = hours ~/ 24;
-    if (days < 7) return '${days}d';
-    return '${days ~/ 7}w';
-  }
-}
-
-class _AboutSection extends StatelessWidget {
-  const _AboutSection();
 
   @override
   Widget build(BuildContext context) {
@@ -920,14 +864,101 @@ class _AboutSection extends StatelessWidget {
             children: [
               _Tile(
                 icon: Icons.info_outline_rounded,
-                title: 'Soplay',
+                title: 'Sozo',
                 trailing: const Text(
                   '1.0.0',
                   style: TextStyle(color: AppColors.textHint, fontSize: 13),
                 ),
                 onTap: null,
               ),
+              Divider(color: AppColors.divider, height: 1),
+              _Tile(
+                icon: Icons.person_outline_rounded,
+                title: 'Developer',
+                trailing: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Azamov X',
+                      style:
+                          TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textHint,
+                      size: 20,
+                    ),
+                  ],
+                ),
+                onTap: () => _showDeveloper(context),
+              ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _SocialIcon(
+                icon: Icons.telegram,
+                label: 'Telegram',
+                onTap: () => _open('https://t.me/sozoApp'),
+              ),
+              const SizedBox(width: 16),
+              _SocialIcon(
+                icon: Icons.language_rounded,
+                label: 'Website',
+                onTap: () => _open('https://sozo.azamov.me'),
+              ),
+              const SizedBox(width: 16),
+              _SocialIcon(
+                icon: Icons.code_rounded,
+                label: 'GitHub',
+                onTap: () => _open('https://github.com/professorDeveloper'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SocialIcon extends StatelessWidget {
+  const _SocialIcon({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border, width: 0.5),
+            ),
+            child: Icon(icon, color: AppColors.textPrimary, size: 24),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textHint,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

@@ -2,9 +2,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/history/data/history_service.dart';
 import 'package:soplay/features/history/domain/entities/history_item.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/widgets/home_banner.dart';
@@ -38,6 +40,36 @@ class _HomeContentState extends State<HomeContent> {
     _scrollController = ScrollController()..addListener(_handleScroll);
     _historyService.revision.addListener(_loadHistory);
     _loadHistory();
+    _maybeShowTelegramPromo();
+  }
+
+  void _maybeShowTelegramPromo() {
+    final hive = getIt<HiveService>();
+    if (hive.hasTelegramPromoSeen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: AppColors.surface,
+        isScrollControlled: false,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => _TelegramPromoSheet(
+          onJoin: () {
+            Navigator.of(ctx).pop();
+            launchUrl(
+              Uri.parse('https://t.me/sozoApp'),
+              mode: LaunchMode.externalApplication,
+            );
+          },
+          onDismiss: (dontShowAgain) {
+            if (dontShowAgain) hive.markTelegramPromoSeen();
+            Navigator.of(ctx).pop();
+          },
+        ),
+      );
+    });
   }
 
   void _loadHistory() {
@@ -175,6 +207,124 @@ class _GenreSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: genres.length,
               itemBuilder: (_, i) => GenreCard(genre: genres[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TelegramPromoSheet extends StatefulWidget {
+  const _TelegramPromoSheet({
+    required this.onJoin,
+    required this.onDismiss,
+  });
+
+  final VoidCallback onJoin;
+  final void Function(bool dontShowAgain) onDismiss;
+
+  @override
+  State<_TelegramPromoSheet> createState() => _TelegramPromoSheetState();
+}
+
+class _TelegramPromoSheetState extends State<_TelegramPromoSheet> {
+  bool _dontShow = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2AABEE),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.telegram, color: Colors.white, size: 32),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Join Sozo on Telegram',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Get updates, new features, and content notifications.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: widget.onJoin,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2AABEE),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.telegram, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Join Channel',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () => setState(() => _dontShow = !_dontShow),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: _dontShow
+                        ? const Color(0xFF2AABEE)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: _dontShow
+                          ? const Color(0xFF2AABEE)
+                          : AppColors.textHint,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: _dontShow
+                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 12)
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  "Don't show again",
+                  style: TextStyle(color: AppColors.textHint, fontSize: 12),
+                ),
+              ],
             ),
           ),
         ],

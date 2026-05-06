@@ -69,6 +69,8 @@ dependencies:
   wakelock_plus: ^1.2.10
   floating: ^6.0.0
   showcaseview: ^5.0.2
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

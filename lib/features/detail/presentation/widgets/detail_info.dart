@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/detail/domain/entities/detail_entity.dart';
+import 'package:soplay/features/history/data/history_service.dart';
+import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 
-class DetailContentHeader extends StatelessWidget {
+class DetailContentHeader extends StatefulWidget {
   const DetailContentHeader({
     super.key,
     required this.detail,
@@ -17,24 +20,90 @@ class DetailContentHeader extends StatelessWidget {
   final Key playButtonKey;
 
   @override
+  State<DetailContentHeader> createState() => _DetailContentHeaderState();
+}
+
+class _DetailContentHeaderState extends State<DetailContentHeader> {
+  final HistoryService _history = getIt<HistoryService>();
+  HistoryItem? _item;
+
+  @override
+  void initState() {
+    super.initState();
+    _history.revision.addListener(_reload);
+    _reload();
+  }
+
+  @override
+  void dispose() {
+    _history.revision.removeListener(_reload);
+    super.dispose();
+  }
+
+  void _reload() {
+    final item = _history.get(widget.detail.contentUrl);
+    if (!mounted) return;
+    setState(() => _item = item);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final item = _item;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _MetaLine(detail: detail),
-          if (detail.genres.isNotEmpty) ...[
+          _MetaLine(detail: widget.detail),
+          if (widget.detail.genres.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _GenresRow(genres: detail.genres),
+            _GenresRow(genres: widget.detail.genres),
           ],
-          if (detail.description.trim().isNotEmpty) ...[
+          if (widget.detail.description.trim().isNotEmpty) ...[
             const SizedBox(height: 14),
-            _ExpandableDescription(text: detail.description.trim()),
+            _ExpandableDescription(text: widget.detail.description.trim()),
           ],
           const SizedBox(height: 18),
-          _PlayButton(key: playButtonKey, onTap: onPrimaryAction),
+          if (item != null && (item.positionMs > 0 || item.episodeNumber != null))
+            _ContinueWatchingCard(item: item, onTap: widget.onPrimaryAction)
+          else
+            _PlayButton(key: widget.playButtonKey, onTap: widget.onPrimaryAction),
         ],
+      ),
+    );
+  }
+}
+
+class _ContinueWatchingCard extends StatelessWidget {
+  const _ContinueWatchingCard({required this.item, required this.onTap});
+  final HistoryItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        icon: const Icon(Icons.play_arrow_rounded, size: 26),
+        label: Text(
+          item.isSerial && item.episodeNumber != null
+              ? 'Continue · EP ${item.episodeNumber}'
+              : 'Continue',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }
