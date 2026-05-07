@@ -10,6 +10,7 @@ import 'app.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
+  await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
   await Future.wait([
     EasyLocalization.ensureInitialized(),
@@ -24,7 +25,6 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]),
   );
-  await dotenv.load(fileName: ".env");
   runApp(
     EasyLocalization(
       supportedLocales: const [
