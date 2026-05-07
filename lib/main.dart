@@ -7,6 +7,7 @@ import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/features/download/data/download_service.dart';
 
 import 'app.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +24,7 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]),
   );
-
+  await dotenv.load(fileName: ".env");
   runApp(
     EasyLocalization(
       supportedLocales: const [

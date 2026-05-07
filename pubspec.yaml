@@ -71,6 +71,7 @@ dependencies:
   showcaseview: ^5.0.2
   share_plus: ^10.1.4
   path_provider: ^2.1.5
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -94,5 +95,6 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/translations/
     - assets/icons/

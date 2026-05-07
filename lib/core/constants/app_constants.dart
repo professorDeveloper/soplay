@@ -1,7 +1,9 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   AppConstants._();
 
-  static const String baseUrl = 'https://apisozo.azamov.me/api';
+  static String get baseUrl => dotenv.env['BASE_URL'] ?? '';
   static const String authBox = 'auth_box';
   static const String settingsBox = 'settings_box';
   static const String historyBox = 'history_box';
