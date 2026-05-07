@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:soplay/core/theme/app_colors.dart';
@@ -11,10 +13,10 @@ class ShimmerWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Shimmer.fromColors(
-        baseColor: _base,
-        highlightColor: _highlight,
-        child: child,
-      );
+    baseColor: _base,
+    highlightColor: _highlight,
+    child: child,
+  );
 }
 
 class HomeNetworkImage extends StatelessWidget {
@@ -33,22 +35,48 @@ class HomeNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = url;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return ClipRRect(
+        borderRadius: borderRadius,
+        child: HomeImagePlaceholder(icon: placeholderIcon),
+      );
+    }
+
+    if (_isLocalPath(imageUrl)) {
+      final file = imageUrl.startsWith('file://')
+          ? File(Uri.parse(imageUrl).toFilePath())
+          : File(imageUrl);
+      return ClipRRect(
+        borderRadius: borderRadius,
+        child: Image.file(
+          file,
+          fit: fit,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, _, _) =>
+              HomeImagePlaceholder(icon: placeholderIcon),
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: borderRadius,
-      child: url != null && url!.isNotEmpty
-          ? Image.network(
-              url!,
-              fit: fit,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (_, _, _) =>
-                  HomeImagePlaceholder(icon: placeholderIcon),
-              loadingBuilder: (_, child, chunk) => chunk == null
-                  ? child
-                  : HomeImagePlaceholder(icon: placeholderIcon),
-            )
-          : HomeImagePlaceholder(icon: placeholderIcon),
+      child: Image.network(
+        imageUrl,
+        fit: fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, _, _) => HomeImagePlaceholder(icon: placeholderIcon),
+        loadingBuilder: (_, child, chunk) =>
+            chunk == null ? child : HomeImagePlaceholder(icon: placeholderIcon),
+      ),
     );
+  }
+
+  bool _isLocalPath(String value) {
+    if (value.startsWith('file://')) return true;
+    return value.startsWith('/') || RegExp(r'^[A-Za-z]:[\\/]').hasMatch(value);
   }
 }
 
@@ -82,11 +110,7 @@ class HomeSkeletonBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: Container(
-        width: width,
-        height: height,
-        color: Colors.white,
-      ),
+      child: Container(width: width, height: height, color: Colors.white),
     );
   }
 }

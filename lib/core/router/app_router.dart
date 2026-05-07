@@ -13,6 +13,7 @@ import 'package:soplay/features/download/presentation/pages/downloads_page.dart'
 import 'package:soplay/features/history/presentation/pages/history_page.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/main/presentation/pages/main_page.dart';
+import 'package:soplay/features/network/presentation/pages/no_internet_page.dart';
 import 'package:soplay/features/splash/presentation/pages/splash_page.dart';
 
 import '../../features/home/presentation/pages/home_view_all_page.dart';
@@ -74,6 +75,10 @@ class AppRouter {
       GoRoute(
         path: '/downloads',
         builder: (context, state) => const DownloadsPage(),
+      ),
+      GoRoute(
+        path: '/no-internet',
+        builder: (context, state) => const NoInternetPage(),
       ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
       GoRoute(path: '/main', builder: (context, state) => const MainPage()),

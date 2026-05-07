@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:soplay/core/network/auth_interceptor.dart';
 import 'package:soplay/core/network/dio_client.dart';
 import 'package:soplay/core/network/logging_interceptor.dart';
+import 'package:soplay/core/network/no_internet_interceptor.dart';
 import 'package:soplay/core/network/provider_interceptor.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/features/download/data/download_service.dart';
@@ -74,6 +75,7 @@ Future<void> configureDependencies() async {
   final dio = DioClient.instance;
   dio.interceptors.add(ProviderInterceptor(hiveService: getIt<HiveService>()));
   dio.interceptors.add(LoggingInterceptor());
+  dio.interceptors.add(NoInternetInterceptor());
   dio.interceptors.add(
     AuthInterceptor(
       hiveService: getIt<HiveService>(),

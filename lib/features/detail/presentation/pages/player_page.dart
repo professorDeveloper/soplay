@@ -50,6 +50,9 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const MethodChannel _pipChannel = MethodChannel('soplay/pip');
+  static const MethodChannel _systemControlsChannel = MethodChannel(
+    'soplay/system_controls',
+  );
 
   final ResolveMediaUseCase _resolve = getIt<ResolveMediaUseCase>();
   final HiveService _hive = getIt<HiveService>();
@@ -96,8 +99,7 @@ class _PlayerPageState extends State<PlayerPage>
   bool? _dragIsHorizontal;
   _SwipeType? _dragSwipeType;
 
-  final ValueNotifier<_ScrubState?> _scrub =
-      ValueNotifier<_ScrubState?>(null);
+  final ValueNotifier<_ScrubState?> _scrub = ValueNotifier<_ScrubState?>(null);
   final ValueNotifier<bool> _speedBoost = ValueNotifier<bool>(false);
   double? _speedBeforeBoost;
 
@@ -133,7 +135,19 @@ class _PlayerPageState extends State<PlayerPage>
     );
     WidgetsBinding.instance.addObserver(this);
     _pipChannel.setMethodCallHandler(_onPipMethodCall);
+    unawaited(_loadSystemControlValues());
     _startup();
+  }
+
+  Future<void> _loadSystemControlValues() async {
+    try {
+      final results = await Future.wait([
+        _systemControlsChannel.invokeMethod<double>('getBrightness'),
+        _systemControlsChannel.invokeMethod<double>('getVolume'),
+      ]);
+      _brightness = (results[0] ?? _brightness).clamp(0.0, 1.0).toDouble();
+      _volume = (results[1] ?? _volume).clamp(0.0, 1.0).toDouble();
+    } catch (_) {}
   }
 
   Future<void> _onPipMethodCall(MethodCall call) async {
@@ -165,8 +179,8 @@ class _PlayerPageState extends State<PlayerPage>
     if (c == null || !c.value.isInitialized) return;
     final isPlaying = c.value.isPlaying;
     final hasPrev = widget.args.isSerial && _episodeIndex > 0;
-    final hasNext = widget.args.isSerial &&
-        _episodeIndex + 1 < widget.args.episodes.length;
+    final hasNext =
+        widget.args.isSerial && _episodeIndex + 1 < widget.args.episodes.length;
     if (isPlaying == _lastPipPlaying) {
       try {
         await _pipChannel.invokeMethod('updatePiPActions', {
@@ -343,7 +357,10 @@ class _PlayerPageState extends State<PlayerPage>
     return 0;
   }
 
-  Future<void> _loadEpisode(int index, {Duration resumeAt = Duration.zero}) async {
+  Future<void> _loadEpisode(
+    int index, {
+    Duration resumeAt = Duration.zero,
+  }) async {
     if (index < 0 || index >= widget.args.episodes.length) return;
     _retryAttempts = 0;
     setState(() {
@@ -393,8 +410,7 @@ class _PlayerPageState extends State<PlayerPage>
           _currentLang = value.activeLang ?? lang ?? _currentLang;
           _videoSources = useSources ? List.of(sources) : const [];
           _currentSourceIndex = pickedIdx;
-          _currentQuality =
-              useSources ? sources[pickedIdx].quality : null;
+          _currentQuality = useSources ? sources[pickedIdx].quality : null;
           _autoFallbackUsed = false;
           _subtitles = subs;
           _activeSubtitleIndex = -1;
@@ -415,8 +431,7 @@ class _PlayerPageState extends State<PlayerPage>
       case Failure(:final error):
         setState(() {
           _initializing = false;
-          _errorMessage =
-              error.toString().replaceFirst('Exception: ', '');
+          _errorMessage = error.toString().replaceFirst('Exception: ', '');
         });
     }
   }
@@ -457,19 +472,21 @@ class _PlayerPageState extends State<PlayerPage>
       ep = widget.args.episodes[_episodeIndex];
     }
 
-    _history.save(HistoryItem(
-      contentUrl: contentUrl,
-      provider: widget.args.provider,
-      title: widget.args.title,
-      thumbnail: widget.args.thumbnail,
-      isSerial: widget.args.isSerial,
-      episodeIndex: widget.args.isSerial ? _episodeIndex : null,
-      episodeNumber: ep?.episode,
-      episodeLabel: ep?.label,
-      positionMs: posMs,
-      durationMs: durMs,
-      watchedAt: DateTime.now().millisecondsSinceEpoch,
-    ));
+    _history.save(
+      HistoryItem(
+        contentUrl: contentUrl,
+        provider: widget.args.provider,
+        title: widget.args.title,
+        thumbnail: widget.args.thumbnail,
+        isSerial: widget.args.isSerial,
+        episodeIndex: widget.args.isSerial ? _episodeIndex : null,
+        episodeNumber: ep?.episode,
+        episodeLabel: ep?.label,
+        positionMs: posMs,
+        durationMs: durMs,
+        watchedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
   }
 
   void _saveHistoryForNextEpisode() {
@@ -481,19 +498,21 @@ class _PlayerPageState extends State<PlayerPage>
     if (nextIdx >= widget.args.episodes.length) return;
 
     final nextEp = widget.args.episodes[nextIdx];
-    _history.save(HistoryItem(
-      contentUrl: contentUrl,
-      provider: widget.args.provider,
-      title: widget.args.title,
-      thumbnail: widget.args.thumbnail,
-      isSerial: true,
-      episodeIndex: nextIdx,
-      episodeNumber: nextEp.episode,
-      episodeLabel: nextEp.label,
-      positionMs: 0,
-      durationMs: 0,
-      watchedAt: DateTime.now().millisecondsSinceEpoch,
-    ));
+    _history.save(
+      HistoryItem(
+        contentUrl: contentUrl,
+        provider: widget.args.provider,
+        title: widget.args.title,
+        thumbnail: widget.args.thumbnail,
+        isSerial: true,
+        episodeIndex: nextIdx,
+        episodeNumber: nextEp.episode,
+        episodeLabel: nextEp.label,
+        positionMs: 0,
+        durationMs: 0,
+        watchedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
   }
 
   List<String> _availableLangsForCurrentEpisode() {
@@ -625,8 +644,9 @@ class _PlayerPageState extends State<PlayerPage>
         debugPrint('[PLAYER] init error: $raw');
         setState(() {
           _initializing = false;
-          _errorMessage =
-              raw == null ? 'Could not load video' : _humanizeError(raw);
+          _errorMessage = raw == null
+              ? 'Could not load video'
+              : _humanizeError(raw);
         });
         return;
       }
@@ -653,7 +673,8 @@ class _PlayerPageState extends State<PlayerPage>
       if (e.code == 'channel-error') {
         msg = 'Player not ready — please fully restart the app';
       } else if (raw.contains('Cannot Decode') || raw.contains('-12906')) {
-        msg = 'This video format is not supported on your device. Try a different quality.';
+        msg =
+            'This video format is not supported on your device. Try a different quality.';
         if (!_autoFallbackUsed && _videoSources.length > 1) {
           _autoRetrying = true;
           _autoRetry();
@@ -696,7 +717,9 @@ class _PlayerPageState extends State<PlayerPage>
     if (lower.contains('http data source')) {
       return 'Network error — check your connection';
     }
-    if (lower.contains('cannot decode') || lower.contains('-12906') || lower.contains('coremediaerror')) {
+    if (lower.contains('cannot decode') ||
+        lower.contains('-12906') ||
+        lower.contains('coremediaerror')) {
       return 'This video format is not supported on your device. Try a different quality.';
     }
     return raw;
@@ -724,9 +747,7 @@ class _PlayerPageState extends State<PlayerPage>
       final msg = v.errorDescription;
       if (msg != null && msg != _lastError && mounted) {
         _lastError = msg;
-        if (!_autoRetrying &&
-            _retryAttempts < 1 &&
-            _isRecoverableError(msg)) {
+        if (!_autoRetrying && _retryAttempts < 1 && _isRecoverableError(msg)) {
           _retryAttempts++;
           _autoRetrying = true;
           _autoRetry();
@@ -930,8 +951,8 @@ class _PlayerPageState extends State<PlayerPage>
     final clamped = next < Duration.zero
         ? Duration.zero
         : next > c.value.duration
-            ? c.value.duration
-            : next;
+        ? c.value.duration
+        : next;
     c.seekTo(clamped);
     _scheduleHide();
   }
@@ -968,6 +989,22 @@ class _PlayerPageState extends State<PlayerPage>
   Future<void> _setSpeed(double speed) async {
     setState(() => _playbackSpeed = speed);
     await _controller?.setPlaybackSpeed(speed);
+  }
+
+  Future<void> _setSystemBrightness(double value) async {
+    try {
+      await _systemControlsChannel.invokeMethod<double>('setBrightness', {
+        'value': value,
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _setSystemVolume(double value) async {
+    try {
+      await _systemControlsChannel.invokeMethod<double>('setVolume', {
+        'value': value,
+      });
+    } catch (_) {}
   }
 
   void _setFit(_PlayerFit fit) {
@@ -1157,10 +1194,12 @@ class _PlayerPageState extends State<PlayerPage>
       final body = response.data;
       if (body != null && body.isNotEmpty) {
         final isVtt =
-            sub.file.toLowerCase().endsWith('.vtt') || body.trimLeft().startsWith('WEBVTT');
+            sub.file.toLowerCase().endsWith('.vtt') ||
+            body.trimLeft().startsWith('WEBVTT');
         setState(() {
-          _captionFile =
-              isVtt ? WebVTTCaptionFile(body) : SubRipCaptionFile(body);
+          _captionFile = isVtt
+              ? WebVTTCaptionFile(body)
+              : SubRipCaptionFile(body);
         });
       }
     } catch (e) {
@@ -1236,7 +1275,7 @@ class _PlayerPageState extends State<PlayerPage>
     );
   }
 
-  void _startDownload() {
+  Future<void> _startDownload() async {
     final url = _videoUrl;
     if (url == null || url.isEmpty) return;
 
@@ -1250,7 +1289,7 @@ class _PlayerPageState extends State<PlayerPage>
     final rawId = widget.args.isSerial && ep != null
         ? '${widget.args.contentUrl ?? url}_ep${ep.episode}'
         : widget.args.contentUrl ?? url;
-    final id = rawId.hashCode.toRadixString(36);
+    final id = _stableDownloadId(rawId);
 
     final existing = _downloads.get(id);
     if (existing != null) {
@@ -1289,7 +1328,18 @@ class _PlayerPageState extends State<PlayerPage>
       episodeLabel: ep?.label,
     );
 
-    _downloads.startDownload(item);
+    final started = await _downloads.startDownload(item);
+    if (!mounted) return;
+    if (!started) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notification permission is required for downloads'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Download started'),
@@ -1297,6 +1347,15 @@ class _PlayerPageState extends State<PlayerPage>
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  String _stableDownloadId(String value) {
+    var hash = 0x811c9dc5;
+    for (final unit in value.codeUnits) {
+      hash ^= unit;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash.toRadixString(36);
   }
 
   void _openSettingsSheet() {
@@ -1315,102 +1374,102 @@ class _PlayerPageState extends State<PlayerPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.settings_outlined,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Settings',
-                    style: TextStyle(
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.settings_outlined,
                       color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                      size: 18,
                     ),
-                  ),
-                ],
+                    SizedBox(width: 10),
+                    Text(
+                      'Settings',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(color: Colors.white12, height: 1),
-            _SettingsTile(
-              icon: Icons.speed_rounded,
-              label: 'Speed',
-              value: '${_playbackSpeed.toStringAsFixed(_playbackSpeed == _playbackSpeed.roundToDouble() ? 0 : 2)}x',
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _openSpeedSheet();
-              },
-            ),
-            _SettingsTile(
-              icon: Icons.aspect_ratio_rounded,
-              label: 'Aspect',
-              value: _fitLabel(_fit),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _openFitSheet();
-              },
-            ),
-            if (hasQualities)
+              const Divider(color: Colors.white12, height: 1),
               _SettingsTile(
-                icon: Icons.high_quality_rounded,
-                label: 'Quality',
-                value: _currentQuality ?? '—',
+                icon: Icons.speed_rounded,
+                label: 'Speed',
+                value:
+                    '${_playbackSpeed.toStringAsFixed(_playbackSpeed == _playbackSpeed.roundToDouble() ? 0 : 2)}x',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _openPanel(_SidePanel.quality);
+                  _openSpeedSheet();
                 },
               ),
-            if (hasLangs)
               _SettingsTile(
-                icon: Icons.translate_rounded,
-                label: 'Audio language',
-                value: _currentLang == null
-                    ? '—'
-                    : _langLabel(_currentLang!),
+                icon: Icons.aspect_ratio_rounded,
+                label: 'Aspect',
+                value: _fitLabel(_fit),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _openLangSheet();
+                  _openFitSheet();
                 },
               ),
-            _SettingsTile(
-              icon: Icons.subtitles_outlined,
-              label: 'Subtitles',
-              value: _subtitles.isEmpty
-                  ? 'N/A'
-                  : _activeSubtitleIndex >= 0
-                      ? _subtitles[_activeSubtitleIndex].label
-                      : 'Off',
-              onTap: _subtitles.isEmpty
-                  ? null
-                  : () {
-                      Navigator.of(sheetContext).pop();
-                      _openSubtitleSheet();
-                    },
-            ),
-            if (!hasLangs)
-              const _SettingsTile(
-                icon: Icons.audiotrack_outlined,
-                label: 'Audio track',
-                value: 'Coming soon',
-                onTap: null,
+              if (hasQualities)
+                _SettingsTile(
+                  icon: Icons.high_quality_rounded,
+                  label: 'Quality',
+                  value: _currentQuality ?? '—',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _openPanel(_SidePanel.quality);
+                  },
+                ),
+              if (hasLangs)
+                _SettingsTile(
+                  icon: Icons.translate_rounded,
+                  label: 'Audio language',
+                  value: _currentLang == null ? '—' : _langLabel(_currentLang!),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _openLangSheet();
+                  },
+                ),
+              _SettingsTile(
+                icon: Icons.subtitles_outlined,
+                label: 'Subtitles',
+                value: _subtitles.isEmpty
+                    ? 'N/A'
+                    : _activeSubtitleIndex >= 0
+                    ? _subtitles[_activeSubtitleIndex].label
+                    : 'Off',
+                onTap: _subtitles.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(sheetContext).pop();
+                        _openSubtitleSheet();
+                      },
               ),
-            _SettingsTile(
-              icon: Icons.download_rounded,
-              label: 'Download',
-              value: '',
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _startDownload();
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+              if (!hasLangs)
+                const _SettingsTile(
+                  icon: Icons.audiotrack_outlined,
+                  label: 'Audio track',
+                  value: 'Coming soon',
+                  onTap: null,
+                ),
+              if (widget.args.showDownloadAction)
+                _SettingsTile(
+                  icon: Icons.download_rounded,
+                  label: 'Download',
+                  value: '',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _startDownload();
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -1568,7 +1627,9 @@ class _PlayerPageState extends State<PlayerPage>
             builder: (context, constraints) => GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _locked ? null : _toggleControls,
-              onDoubleTapDown: _locked ? null : (d) => _onDoubleTapDown(d, constraints),
+              onDoubleTapDown: _locked
+                  ? null
+                  : (d) => _onDoubleTapDown(d, constraints),
               onDoubleTap: _locked ? null : () {},
               onPanStart: _locked ? null : (d) => _onPanStart(d, constraints),
               onPanUpdate: _locked ? null : (d) => _onPanUpdate(d, constraints),
@@ -1763,14 +1824,12 @@ class _PlayerPageState extends State<PlayerPage>
       builder: (_, state, _) {
         if (state == null) return const SizedBox.shrink();
         final preview = state.previewPosition(_scrubSecondsPerFullSwipe);
-        final deltaSeconds =
-            (preview - state.baseline).inSeconds;
+        final deltaSeconds = (preview - state.baseline).inSeconds;
         final isForward = deltaSeconds >= 0;
         return IgnorePointer(
           child: Center(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(14),
@@ -1886,16 +1945,15 @@ class _PlayerPageState extends State<PlayerPage>
       _dragIsHorizontal = dx > dy;
 
       if (_dragIsHorizontal!) {
-        _onHDragStart(DragStartDetails(
-          globalPosition: d.globalPosition,
-          localPosition: d.localPosition,
-        ));
+        _onHDragStart(
+          DragStartDetails(
+            globalPosition: d.globalPosition,
+            localPosition: d.localPosition,
+          ),
+        );
       } else {
         final isLeft = start.dx < constraints.maxWidth * 0.5;
         _dragSwipeType = isLeft ? _SwipeType.brightness : _SwipeType.volume;
-        if (_dragSwipeType == _SwipeType.volume) {
-          _volume = _controller?.value.volume ?? 1.0;
-        }
       }
     }
 
@@ -1904,14 +1962,16 @@ class _PlayerPageState extends State<PlayerPage>
     } else {
       final delta = -(d.delta.dy) / (constraints.maxHeight * 0.7);
       if (_dragSwipeType == _SwipeType.brightness) {
-        _brightness = (_brightness + delta).clamp(0.0, 1.0);
-        _swipeIndicator.value =
-            _SwipeIndicator(_SwipeType.brightness, _brightness);
+        _brightness = (_brightness + delta).clamp(0.0, 1.0).toDouble();
+        unawaited(_setSystemBrightness(_brightness));
+        _swipeIndicator.value = _SwipeIndicator(
+          _SwipeType.brightness,
+          _brightness,
+        );
       } else {
-        _volume = (_volume + delta).clamp(0.0, 1.0);
-        _controller?.setVolume(_volume);
-        _swipeIndicator.value =
-            _SwipeIndicator(_SwipeType.volume, _volume);
+        _volume = (_volume + delta).clamp(0.0, 1.0).toDouble();
+        unawaited(_setSystemVolume(_volume));
+        _swipeIndicator.value = _SwipeIndicator(_SwipeType.volume, _volume);
       }
     }
   }
@@ -1966,8 +2026,8 @@ class _PlayerPageState extends State<PlayerPage>
                     isBrightness
                         ? Icons.brightness_6_rounded
                         : indicator.value > 0
-                            ? Icons.volume_up_rounded
-                            : Icons.volume_off_rounded,
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
                     color: Colors.white,
                     size: 18,
                   ),
@@ -1981,8 +2041,9 @@ class _PlayerPageState extends State<PlayerPage>
                           value: indicator.value,
                           minHeight: 4,
                           backgroundColor: Colors.white24,
-                          valueColor:
-                              const AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -2031,11 +2092,7 @@ class _PlayerPageState extends State<PlayerPage>
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.lock_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+                    Icon(Icons.lock_rounded, color: Colors.white, size: 16),
                     SizedBox(width: 8),
                     Text(
                       'Tap to unlock',
@@ -2141,8 +2198,8 @@ class _PlayerPageState extends State<PlayerPage>
                         onTap: hasEpisodes
                             ? () => _openPanel(_SidePanel.episodes)
                             : hasQualities
-                                ? () => _openPanel(_SidePanel.quality)
-                                : _openSettingsSheet,
+                            ? () => _openPanel(_SidePanel.quality)
+                            : _openSettingsSheet,
                       ),
                     ],
                   ),
@@ -2253,20 +2310,21 @@ class _PlayerPageState extends State<PlayerPage>
                             activeTrackColor: AppColors.primary,
                             inactiveTrackColor: Colors.white24,
                             thumbColor: Colors.white,
-                            overlayColor:
-                                AppColors.primary.withValues(alpha: 0.2),
+                            overlayColor: AppColors.primary.withValues(
+                              alpha: 0.2,
+                            ),
                           ),
                           child: Slider(
                             value: duration.inMilliseconds == 0
                                 ? 0
                                 : position.inMilliseconds
-                                    .clamp(0, duration.inMilliseconds)
-                                    .toDouble(),
+                                      .clamp(0, duration.inMilliseconds)
+                                      .toDouble(),
                             min: 0,
                             max: duration.inMilliseconds.toDouble().clamp(
-                                  1,
-                                  double.infinity,
-                                ),
+                              1,
+                              double.infinity,
+                            ),
                             onChanged: (v) {
                               _seekTo(Duration(milliseconds: v.toInt()));
                             },
@@ -2305,7 +2363,8 @@ class _PlayerPageState extends State<PlayerPage>
                       ),
                     _BottomTextButton(
                       icon: Icons.speed_rounded,
-                      label: '${_playbackSpeed.toStringAsFixed(_playbackSpeed == _playbackSpeed.roundToDouble() ? 0 : 2)}x',
+                      label:
+                          '${_playbackSpeed.toStringAsFixed(_playbackSpeed == _playbackSpeed.roundToDouble() ? 0 : 2)}x',
                       enabled: true,
                       onTap: _openSpeedSheet,
                     ),
@@ -2569,8 +2628,7 @@ class _LoadingOverlay extends StatelessWidget {
                 child: const LinearProgressIndicator(
                   minHeight: 3,
                   backgroundColor: Colors.white12,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               ),
             ),
@@ -2651,7 +2709,11 @@ class _LangPill extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.translate_rounded, color: Colors.white, size: 14),
+              const Icon(
+                Icons.translate_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -2841,8 +2903,7 @@ class _QualityRow extends StatelessWidget {
             ),
             if (source.isDefault)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(4),
@@ -2977,11 +3038,11 @@ class _ScrubState {
   });
 
   _ScrubState copyWith({double? deltaPx, double? span}) => _ScrubState(
-        baseline: baseline,
-        duration: duration,
-        deltaPx: deltaPx ?? this.deltaPx,
-        span: span ?? this.span,
-      );
+    baseline: baseline,
+    duration: duration,
+    deltaPx: deltaPx ?? this.deltaPx,
+    span: span ?? this.span,
+  );
 
   Duration previewPosition(double secondsPerFullSwipe) {
     if (span <= 0 || duration.inMilliseconds <= 0) return baseline;

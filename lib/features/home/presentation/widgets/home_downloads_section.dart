@@ -34,7 +34,11 @@ class _DownloadsSectionState extends State<DownloadsSection> {
   void _reload() {
     if (!mounted) return;
     final all = _service.getAll();
-    setState(() => _items = all.where((i) => i.status == DownloadStatus.completed).toList());
+    setState(
+      () => _items = all
+          .where((i) => i.status == DownloadStatus.completed)
+          .toList(),
+    );
   }
 
   @override
@@ -111,11 +115,12 @@ class _DownloadCard extends StatelessWidget {
             provider: item.provider,
             headers: const {},
             contentUrl: item.contentUrl,
-            thumbnail: item.thumbnail,
+            thumbnail: item.displayThumbnail,
             movieUrl: item.localPath.endsWith('.m3u8')
                 ? Uri.file(item.localPath).toString()
                 : item.localPath,
             type: item.localPath.endsWith('.m3u8') ? 'hls' : null,
+            showDownloadAction: false,
           ),
         );
       },
@@ -133,7 +138,7 @@ class _DownloadCard extends StatelessWidget {
                     fit: StackFit.expand,
                     children: [
                       HomeNetworkImage(
-                        url: item.thumbnail,
+                        url: item.displayThumbnail,
                         borderRadius: BorderRadius.zero,
                         placeholderIcon: Icons.movie_outlined,
                       ),

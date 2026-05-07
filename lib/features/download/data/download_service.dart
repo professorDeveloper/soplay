@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:soplay/core/constants/app_constants.dart';
@@ -10,13 +12,32 @@ import 'package:soplay/features/download/domain/entities/download_item.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class DownloadService {
+  DownloadService() {
+    if (_useNativeDownloader) {
+      _nativePoller = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => unawaited(syncNativeStates()),
+      );
+    }
+  }
+
   final Dio _dio = Dio();
   final Map<String, CancelToken> _tokens = {};
+  final _NativeDownloadBridge _native = _NativeDownloadBridge();
+  Timer? _nativePoller;
   int _activeCount = 0;
 
   final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
   Box get _box => Hive.box(AppConstants.downloadBox);
+
+  bool get _useNativeDownloader =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  void dispose() {
+    _nativePoller?.cancel();
+    revision.dispose();
+  }
 
   List<DownloadItem> getAll() {
     final items = <DownloadItem>[];
@@ -24,9 +45,9 @@ class DownloadService {
       try {
         final raw = _box.get(key);
         if (raw is String) {
-          items.add(DownloadItem.fromJson(
-            jsonDecode(raw) as Map<String, dynamic>,
-          ));
+          items.add(
+            DownloadItem.fromJson(jsonDecode(raw) as Map<String, dynamic>),
+          );
         }
       } catch (_) {}
     }
@@ -85,13 +106,18 @@ class DownloadService {
     return lower.contains('.m3u8');
   }
 
-  Future<void> startDownload(DownloadItem item) async {
-    if (_tokens.containsKey(item.id)) return;
+  Future<bool> startDownload(DownloadItem item) async {
+    if (_tokens.containsKey(item.id)) return false;
+
+    if (_useNativeDownloader) {
+      return _startNativeDownload(item);
+    }
 
     final cancel = CancelToken();
     _tokens[item.id] = cancel;
 
     var dl = item.copyWith(status: DownloadStatus.downloading);
+    dl = await _cacheThumbnail(dl);
     await _save(dl, force: true);
     await _acquireWakelock();
 
@@ -103,25 +129,88 @@ class DownloadService {
       }
       dl = dl.copyWith(status: DownloadStatus.completed);
       await _save(dl, force: true);
+      return true;
     } on DioException catch (e) {
-      if (e.type == DioExceptionType.cancel) return;
+      if (e.type == DioExceptionType.cancel) return false;
       dl = dl.copyWith(status: DownloadStatus.failed);
       await _save(dl, force: true);
+      return false;
     } catch (e) {
       debugPrint('[DOWNLOAD] error: $e');
       dl = dl.copyWith(status: DownloadStatus.failed);
       await _save(dl, force: true);
+      return false;
     } finally {
       _tokens.remove(item.id);
       await _releaseWakelock();
     }
   }
 
+  Future<bool> _startNativeDownload(DownloadItem item) async {
+    final dir = await _itemDir(item.id);
+    final localPath = _isHls(item.videoUrl)
+        ? '$dir/index.m3u8'
+        : '$dir/video${_extensionFrom(item.videoUrl)}';
+    var dl = item.copyWith(
+      localPath: localPath,
+      status: DownloadStatus.downloading,
+    );
+    dl = await _cacheThumbnail(dl);
+    await _save(dl, force: true);
+
+    final started = await _native.startDownload(dl);
+    if (!started) {
+      await _save(dl.copyWith(status: DownloadStatus.failed), force: true);
+      return false;
+    }
+
+    await syncNativeStates();
+    return true;
+  }
+
   Future<void> resumeIncomplete() async {
+    if (_useNativeDownloader) {
+      await syncNativeStates();
+    }
     final items = getAll();
     for (final item in items) {
       if (item.status == DownloadStatus.downloading) {
-        startDownload(item);
+        unawaited(startDownload(item));
+      }
+    }
+  }
+
+  Future<void> syncNativeStates() async {
+    if (!_useNativeDownloader) return;
+    List<_NativeDownloadState> states;
+    try {
+      states = await _native.getStates();
+    } catch (_) {
+      return;
+    }
+
+    for (final state in states) {
+      final item = get(state.id);
+      if (item == null) continue;
+
+      final status = switch (state.status) {
+        'completed' => DownloadStatus.completed,
+        'failed' => DownloadStatus.failed,
+        'cancelled' => DownloadStatus.failed,
+        'downloading' => DownloadStatus.downloading,
+        _ => item.status,
+      };
+      final updated = item.copyWith(
+        status: status,
+        localPath: state.localPath.isEmpty ? item.localPath : state.localPath,
+        downloadedBytes: state.downloadedBytes,
+        totalBytes: state.totalBytes,
+      );
+      if (updated.status != item.status ||
+          updated.localPath != item.localPath ||
+          updated.downloadedBytes != item.downloadedBytes ||
+          updated.totalBytes != item.totalBytes) {
+        await _save(updated, force: true);
       }
     }
   }
@@ -153,19 +242,39 @@ class DownloadService {
     return current;
   }
 
-  Future<DownloadItem> _downloadHls(
-    DownloadItem dl,
-    CancelToken cancel,
-  ) async {
+  Future<DownloadItem> _cacheThumbnail(DownloadItem item) async {
+    final thumbnail = item.thumbnail?.trim();
+    if (thumbnail == null || thumbnail.isEmpty) return item;
+
+    final dir = await _itemDir(item.id);
+    final path = '$dir/thumbnail${_imageExtensionFrom(thumbnail)}';
+    final file = File(path);
+    if (await file.exists() && await file.length() > 0) {
+      return item.copyWith(localThumbnailPath: path);
+    }
+
+    try {
+      await _dio.download(
+        thumbnail,
+        path,
+        options: Options(headers: item.headers),
+      );
+      if (await file.exists() && await file.length() > 0) {
+        return item.copyWith(localThumbnailPath: path);
+      }
+    } catch (e) {
+      debugPrint('[DOWNLOAD] thumbnail cache failed: $e');
+    }
+    return item;
+  }
+
+  Future<DownloadItem> _downloadHls(DownloadItem dl, CancelToken cancel) async {
     final dir = await _itemDir(dl.id);
 
     final m3u8Resp = await _dio.get<String>(
       dl.videoUrl,
       cancelToken: cancel,
-      options: Options(
-        headers: dl.headers,
-        responseType: ResponseType.plain,
-      ),
+      options: Options(headers: dl.headers, responseType: ResponseType.plain),
     );
     final m3u8 = m3u8Resp.data ?? '';
     final baseUrl = _baseUrlOf(dl.videoUrl);
@@ -179,10 +288,7 @@ class DownloadService {
       final varResp = await _dio.get<String>(
         variantUrl,
         cancelToken: cancel,
-        options: Options(
-          headers: dl.headers,
-          responseType: ResponseType.plain,
-        ),
+        options: Options(headers: dl.headers, responseType: ResponseType.plain),
       );
       mediaPlaylist = varResp.data ?? '';
       mediaBaseUrl = _baseUrlOf(variantUrl);
@@ -291,12 +397,18 @@ class DownloadService {
   }
 
   void cancelDownload(String id) {
+    if (_useNativeDownloader) {
+      unawaited(_native.cancelDownload(id));
+    }
     _tokens[id]?.cancel();
     _tokens.remove(id);
   }
 
   Future<void> remove(String id) async {
     cancelDownload(id);
+    if (_useNativeDownloader) {
+      await _native.removeState(id);
+    }
     final dir = await _itemDir(id);
     final folder = Directory(dir);
     if (await folder.exists()) await folder.delete(recursive: true);
@@ -307,6 +419,9 @@ class DownloadService {
   Future<void> clearAll() async {
     _tokens.forEach((_, t) => t.cancel());
     _tokens.clear();
+    if (_useNativeDownloader) {
+      await _native.cancelAll();
+    }
     final base = await getApplicationDocumentsDirectory();
     final dlDir = Directory('${base.path}/downloads');
     if (await dlDir.exists()) await dlDir.delete(recursive: true);
@@ -323,4 +438,81 @@ class DownloadService {
     if (path.endsWith('.ts')) return '.ts';
     return '.mp4';
   }
+
+  String _imageExtensionFrom(String url) {
+    final uri = Uri.tryParse(url);
+    final path = uri?.path.toLowerCase() ?? '';
+    if (path.endsWith('.png')) return '.png';
+    if (path.endsWith('.webp')) return '.webp';
+    if (path.endsWith('.gif')) return '.gif';
+    return '.jpg';
+  }
+}
+
+class _NativeDownloadBridge {
+  static const MethodChannel _channel = MethodChannel('soplay/downloads');
+
+  Future<bool> startDownload(DownloadItem item) async {
+    final allowed =
+        await _channel.invokeMethod<bool>('requestNotificationPermission') ??
+        false;
+    if (!allowed) return false;
+
+    return await _channel.invokeMethod<bool>('startDownload', {
+          'id': item.id,
+          'title': item.title,
+          'url': item.videoUrl,
+          'localPath': item.localPath,
+          'headers': item.headers,
+        }) ??
+        false;
+  }
+
+  Future<List<_NativeDownloadState>> getStates() async {
+    final raw =
+        await _channel.invokeMethod<String>('getDownloadStates') ?? '{}';
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return const [];
+    return decoded.values
+        .whereType<Map>()
+        .map((e) => _NativeDownloadState.fromJson(e))
+        .toList();
+  }
+
+  Future<void> cancelDownload(String id) async {
+    await _channel.invokeMethod<void>('cancelDownload', {'id': id});
+  }
+
+  Future<void> removeState(String id) async {
+    await _channel.invokeMethod<void>('removeDownloadState', {'id': id});
+  }
+
+  Future<void> cancelAll() async {
+    await _channel.invokeMethod<void>('cancelAllDownloads');
+  }
+}
+
+class _NativeDownloadState {
+  const _NativeDownloadState({
+    required this.id,
+    required this.status,
+    required this.localPath,
+    required this.downloadedBytes,
+    required this.totalBytes,
+  });
+
+  final String id;
+  final String status;
+  final String localPath;
+  final int downloadedBytes;
+  final int totalBytes;
+
+  factory _NativeDownloadState.fromJson(Map<dynamic, dynamic> json) =>
+      _NativeDownloadState(
+        id: json['id']?.toString() ?? '',
+        status: json['status']?.toString() ?? '',
+        localPath: json['localPath']?.toString() ?? '',
+        downloadedBytes: (json['downloadedBytes'] as num?)?.toInt() ?? 0,
+        totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
+      );
 }
