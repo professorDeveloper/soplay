@@ -101,7 +101,7 @@ class _MyListViewState extends State<_MyListView>
   }
 
   void _openDetail(FavoriteEntity item) {
-    context.push('/detail', extra: DetailArgs(contentUrl: item.contentUrl));
+    context.push('/detail', extra: DetailArgs(contentUrl: item.contentUrl, provider: item.provider));
   }
 
   @override

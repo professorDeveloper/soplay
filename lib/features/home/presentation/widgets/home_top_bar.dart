@@ -1,13 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/navigation/nav_controller.dart';
 import 'package:soplay/core/theme/app_colors.dart';
-import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:soplay/features/auth/presentation/bloc/auth_state.dart';
 import 'package:soplay/features/download/data/download_service.dart';
 import 'package:soplay/features/download/domain/entities/download_item.dart';
 
@@ -61,51 +56,11 @@ class HomeTopBar extends StatelessWidget {
           ),
           _DownloadIndicator(),
           _TopBarIcon(icon: Icons.notifications_none_rounded, onTap: () {}),
-          const SizedBox(width: 2),
-          BlocBuilder<AuthBloc, AuthState>(
-            buildWhen: (a, b) => a.runtimeType != b.runtimeType,
-            builder: (context, state) {
-              if (state is AuthLoaded) {
-                final name = state.token.user.displayIdentifier;
-                final initial =
-                    name.isEmpty ? 'U' : name[0].toUpperCase();
-                return GestureDetector(
-                  onTap: () => getIt<NavController>().goTo(4),
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
         ],
       ),
     );
 
-    if (progress < 0.01) return content;
-
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18 * progress, sigmaY: 18 * progress),
-        child: content,
-      ),
-    );
+    return content;
   }
 }
 
