@@ -360,9 +360,10 @@ class _PlayerPageState extends State<PlayerPage>
   Future<void> _loadEpisode(
     int index, {
     Duration resumeAt = Duration.zero,
+    bool keepRetryCount = false,
   }) async {
     if (index < 0 || index >= widget.args.episodes.length) return;
-    _retryAttempts = 0;
+    if (!keepRetryCount) _retryAttempts = 0;
     setState(() {
       _initializing = true;
       _stage = _LoadingStage.resolving;
@@ -672,7 +673,10 @@ class _PlayerPageState extends State<PlayerPage>
       String msg;
       if (e.code == 'channel-error') {
         msg = 'Player not ready — please fully restart the app';
-      } else if (raw.contains('Cannot Decode') || raw.contains('-12906')) {
+      } else if (raw.contains('Cannot Decode') ||
+          raw.contains('-12906') ||
+          raw.contains('-12939') ||
+          raw.contains('CoreMediaError')) {
         msg =
             'This video format is not supported on your device. Try a different quality.';
         if (!_autoFallbackUsed && _videoSources.length > 1) {
@@ -680,6 +684,12 @@ class _PlayerPageState extends State<PlayerPage>
           _autoRetry();
           return;
         }
+      } else if (_isRecoverableError(raw) && _retryAttempts < 2) {
+        debugPrint('[PLAYER] recoverable error, retrying (attempt ${_retryAttempts + 1})');
+        _retryAttempts++;
+        _autoRetrying = true;
+        _autoRetry();
+        return;
       } else {
         msg = raw.isEmpty ? 'Could not load video' : _humanizeError(raw);
       }
@@ -727,15 +737,24 @@ class _PlayerPageState extends State<PlayerPage>
 
   bool _isRecoverableError(String msg) {
     final l = msg.toLowerCase();
-    return l.contains('mediacodec') ||
-        l.contains('source error') ||
-        l.contains('decoder') ||
-        l.contains('renderer') ||
-        l.contains('audio') ||
-        l.contains('codec') ||
+    // Never retry format/config/404 errors — these will always fail
+    if (l.contains('-12939') ||
+        l.contains('-12938') ||
+        l.contains('404') ||
+        l.contains('not found') ||
+        l.contains('coremediaerror') ||
         l.contains('cannot decode') ||
-        l.contains('-12906') ||
-        l.contains('coremediaerror');
+        l.contains('-12906')) {
+      return false;
+    }
+    return l.contains('timed out') ||
+        l.contains('timeout') ||
+        l.contains('-1001') ||
+        l.contains('-1005') ||
+        l.contains('source error') ||
+        l.contains('mediacodec') ||
+        l.contains('decoder') ||
+        l.contains('renderer');
   }
 
   void _onMajorChange() {
@@ -747,7 +766,7 @@ class _PlayerPageState extends State<PlayerPage>
       final msg = v.errorDescription;
       if (msg != null && msg != _lastError && mounted) {
         _lastError = msg;
-        if (!_autoRetrying && _retryAttempts < 1 && _isRecoverableError(msg)) {
+        if (!_autoRetrying && _retryAttempts < 2 && _isRecoverableError(msg)) {
           _retryAttempts++;
           _autoRetrying = true;
           _autoRetry();
@@ -854,7 +873,7 @@ class _PlayerPageState extends State<PlayerPage>
     await Future<void>.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
     if (widget.args.isSerial) {
-      await _loadEpisode(_episodeIndex);
+      await _loadEpisode(_episodeIndex, keepRetryCount: true);
     } else if (_videoUrl != null) {
       await _initializeWith(
         url: _videoUrl!,
