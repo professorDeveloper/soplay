@@ -67,6 +67,7 @@ class _HomeContentState extends State<HomeContent> {
             if (dontShowAgain) hive.markTelegramPromoSeen();
             Navigator.of(ctx).pop();
           },
+          onDontShowAgain: hive.markTelegramPromoSeen,
         ),
       );
     });
@@ -219,10 +220,12 @@ class _TelegramPromoSheet extends StatefulWidget {
   const _TelegramPromoSheet({
     required this.onJoin,
     required this.onDismiss,
+    required this.onDontShowAgain,
   });
 
   final VoidCallback onJoin;
   final void Function(bool dontShowAgain) onDismiss;
+  final VoidCallback onDontShowAgain;
 
   @override
   State<_TelegramPromoSheet> createState() => _TelegramPromoSheetState();
@@ -238,7 +241,6 @@ class _TelegramPromoSheetState extends State<_TelegramPromoSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-
           Container(
             width: 56,
             height: 56,
@@ -296,7 +298,10 @@ class _TelegramPromoSheetState extends State<_TelegramPromoSheet> {
           ),
           const SizedBox(height: 14),
           GestureDetector(
-            onTap: () => setState(() => _dontShow = !_dontShow),
+            onTap: () {
+              setState(() => _dontShow = !_dontShow);
+              if (_dontShow) widget.onDontShowAgain();
+            },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -316,7 +321,11 @@ class _TelegramPromoSheetState extends State<_TelegramPromoSheet> {
                     ),
                   ),
                   child: _dontShow
-                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 12)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 12,
+                        )
                       : null,
                 ),
                 const SizedBox(width: 8),

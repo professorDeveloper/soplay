@@ -18,9 +18,9 @@ class HistoryService {
       try {
         final raw = _box.get(key);
         if (raw is String) {
-          items.add(HistoryItem.fromJson(
-            jsonDecode(raw) as Map<String, dynamic>,
-          ));
+          items.add(
+            HistoryItem.fromJson(jsonDecode(raw) as Map<String, dynamic>),
+          );
         }
       } catch (_) {}
     }
@@ -28,26 +28,30 @@ class HistoryService {
     return items;
   }
 
-  HistoryItem? get(String contentUrl) {
-    final raw = _box.get(contentUrl);
+  HistoryItem? get(String contentUrl, {int? episodeIndex, int? episodeNumber}) {
+    final key = HistoryItem.buildStorageKey(
+      contentUrl: contentUrl,
+      isSerial: episodeIndex != null || episodeNumber != null,
+      episodeIndex: episodeIndex,
+      episodeNumber: episodeNumber,
+    );
+    final raw = _box.get(key) ?? _box.get(contentUrl);
     if (raw is! String) return null;
     try {
-      return HistoryItem.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
+      return HistoryItem.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
   }
 
   Future<void> save(HistoryItem item) async {
-    await _box.put(item.contentUrl, jsonEncode(item.toJson()));
+    await _box.put(item.storageKey, jsonEncode(item.toJson()));
     await _trimIfNeeded();
     revision.value++;
   }
 
-  Future<void> remove(String contentUrl) async {
-    await _box.delete(contentUrl);
+  Future<void> remove(String key) async {
+    await _box.delete(key);
     revision.value++;
   }
 
@@ -62,7 +66,7 @@ class HistoryService {
     if (items.length <= _maxItems) return;
     final toRemove = items.sublist(_maxItems);
     for (final item in toRemove) {
-      await _box.delete(item.contentUrl);
+      await _box.delete(item.storageKey);
     }
   }
 }
