@@ -740,8 +740,11 @@ class _PlayerPageState extends State<PlayerPage>
     // Never retry format/config/404 errors — these will always fail
     if (l.contains('-12939') ||
         l.contains('-12938') ||
+        l.contains('-12660') ||
         l.contains('404') ||
+        l.contains('403') ||
         l.contains('not found') ||
+        l.contains('forbidden') ||
         l.contains('coremediaerror') ||
         l.contains('cannot decode') ||
         l.contains('-12906')) {
@@ -1476,7 +1479,8 @@ class _PlayerPageState extends State<PlayerPage>
                   value: 'Coming soon',
                   onTap: null,
                 ),
-              if (widget.args.showDownloadAction)
+              if (widget.args.showDownloadAction &&
+                  widget.args.provider != 'uzmovi')
                 _SettingsTile(
                   icon: Icons.download_rounded,
                   label: 'Download',

@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:soplay/core/error/result.dart';
 import 'package:soplay/features/home/data/datasources/home_data_source.dart';
-import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/home/domain/entities/view_all_paging_entity.dart';
 import 'package:soplay/features/home/domain/repositories/home_repository.dart';
 import 'package:soplay/features/search/domain/entities/genre_entity.dart';
@@ -19,14 +18,13 @@ class HomeRepositoryImp implements HomeRepository {
       final data = await dataSource.loadHome();
       return Success(data);
     } on DioException catch (e) {
+      final raw = e.response?.data;
       final message =
-          (e.response?.data as Map?)?['message'] ??
+          (raw is Map ? raw['message'] : null) ??
           e.message ??
           'Xatolik yuz berdi';
-      print('message: $message');
-      return Failure(Exception(message));
+      return Failure(Exception(message.toString()));
     } catch (e) {
-      print('message: ${e.toString()}');
       return Failure(Exception(e.toString()));
     }
   }
@@ -45,12 +43,12 @@ class HomeRepositoryImp implements HomeRepository {
       );
       return Success(data);
     } on DioException catch (e) {
+      final raw = e.response?.data;
       final message =
-          (e.response?.data as Map?)?['message'] ??
+          (raw is Map ? raw['message'] : null) ??
           e.message ??
           'Xatolik yuz berdi';
-      print('message: $message');
-      return Failure(Exception(message));
+      return Failure(Exception(message.toString()));
     } catch (e) {
       print('message: ${e.toString()}');
       return Failure(Exception(e.toString()));

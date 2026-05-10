@@ -191,7 +191,7 @@ class _GenreSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(17, 18, 16, 12),
             child: Text(
-              "genres".tr(),
+              "home.genres".tr(),
               style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 17,
