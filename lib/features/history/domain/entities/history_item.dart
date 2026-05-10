@@ -28,6 +28,25 @@ class HistoryItem {
   double get progress =>
       durationMs > 0 ? (positionMs / durationMs).clamp(0.0, 1.0) : 0.0;
 
+  String get storageKey => buildStorageKey(
+    contentUrl: contentUrl,
+    isSerial: isSerial,
+    episodeIndex: episodeIndex,
+    episodeNumber: episodeNumber,
+  );
+
+  static String buildStorageKey({
+    required String contentUrl,
+    bool isSerial = false,
+    int? episodeIndex,
+    int? episodeNumber,
+  }) {
+    if (!isSerial) return contentUrl;
+    final episodeKey = episodeNumber ?? episodeIndex;
+    if (episodeKey == null) return contentUrl;
+    return '$contentUrl::episode::$episodeKey';
+  }
+
   HistoryItem copyWith({
     int? episodeIndex,
     int? episodeNumber,
@@ -35,46 +54,45 @@ class HistoryItem {
     int? positionMs,
     int? durationMs,
     int? watchedAt,
-  }) =>
-      HistoryItem(
-        contentUrl: contentUrl,
-        provider: provider,
-        title: title,
-        thumbnail: thumbnail,
-        isSerial: isSerial,
-        episodeIndex: episodeIndex ?? this.episodeIndex,
-        episodeNumber: episodeNumber ?? this.episodeNumber,
-        episodeLabel: episodeLabel ?? this.episodeLabel,
-        positionMs: positionMs ?? this.positionMs,
-        durationMs: durationMs ?? this.durationMs,
-        watchedAt: watchedAt ?? this.watchedAt,
-      );
+  }) => HistoryItem(
+    contentUrl: contentUrl,
+    provider: provider,
+    title: title,
+    thumbnail: thumbnail,
+    isSerial: isSerial,
+    episodeIndex: episodeIndex ?? this.episodeIndex,
+    episodeNumber: episodeNumber ?? this.episodeNumber,
+    episodeLabel: episodeLabel ?? this.episodeLabel,
+    positionMs: positionMs ?? this.positionMs,
+    durationMs: durationMs ?? this.durationMs,
+    watchedAt: watchedAt ?? this.watchedAt,
+  );
 
   Map<String, dynamic> toJson() => {
-        'contentUrl': contentUrl,
-        'provider': provider,
-        'title': title,
-        'thumbnail': thumbnail,
-        'isSerial': isSerial,
-        'episodeIndex': episodeIndex,
-        'episodeNumber': episodeNumber,
-        'episodeLabel': episodeLabel,
-        'positionMs': positionMs,
-        'durationMs': durationMs,
-        'watchedAt': watchedAt,
-      };
+    'contentUrl': contentUrl,
+    'provider': provider,
+    'title': title,
+    'thumbnail': thumbnail,
+    'isSerial': isSerial,
+    'episodeIndex': episodeIndex,
+    'episodeNumber': episodeNumber,
+    'episodeLabel': episodeLabel,
+    'positionMs': positionMs,
+    'durationMs': durationMs,
+    'watchedAt': watchedAt,
+  };
 
   factory HistoryItem.fromJson(Map<String, dynamic> json) => HistoryItem(
-        contentUrl: json['contentUrl'] as String? ?? '',
-        provider: json['provider'] as String? ?? '',
-        title: json['title'] as String? ?? '',
-        thumbnail: json['thumbnail'] as String?,
-        isSerial: json['isSerial'] as bool? ?? false,
-        episodeIndex: json['episodeIndex'] as int?,
-        episodeNumber: json['episodeNumber'] as int?,
-        episodeLabel: json['episodeLabel'] as String?,
-        positionMs: json['positionMs'] as int? ?? 0,
-        durationMs: json['durationMs'] as int? ?? 0,
-        watchedAt: json['watchedAt'] as int? ?? 0,
-      );
+    contentUrl: json['contentUrl'] as String? ?? '',
+    provider: json['provider'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    thumbnail: json['thumbnail'] as String?,
+    isSerial: json['isSerial'] as bool? ?? false,
+    episodeIndex: json['episodeIndex'] as int?,
+    episodeNumber: json['episodeNumber'] as int?,
+    episodeLabel: json['episodeLabel'] as String?,
+    positionMs: json['positionMs'] as int? ?? 0,
+    durationMs: json['durationMs'] as int? ?? 0,
+    watchedAt: json['watchedAt'] as int? ?? 0,
+  );
 }

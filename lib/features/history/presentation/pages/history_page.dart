@@ -81,7 +81,12 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   void _removeItem(HistoryItem item) {
-    _historyService.remove(item.contentUrl);
+    if (mounted) {
+      setState(() {
+        _items = _items.where((e) => e.storageKey != item.storageKey).toList();
+      });
+    }
+    _historyService.remove(item.storageKey);
   }
 
   @override
@@ -166,26 +171,26 @@ class _HistoryPageState extends State<HistoryPage> {
           else
             SliverList.separated(
               itemCount: _items.length,
-              separatorBuilder: (_, _) => Divider(
-                color: AppColors.divider,
-                height: 1,
-                indent: 82,
-              ),
-              itemBuilder: (_, i) => _HistoryRow(
-                item: _items[i],
-                onTap: () {
-                  context.push(
-                    '/detail',
-                    extra: DetailArgs(
-                      contentUrl: _items[i].contentUrl,
-                      autoPlay: true,
-                      resumeEpisodeIndex: _items[i].episodeIndex,
-                      provider: _items[i].provider,
-                    ),
-                  );
-                },
-                onDismissed: () => _removeItem(_items[i]),
-              ),
+              separatorBuilder: (_, _) =>
+                  Divider(color: AppColors.divider, height: 1, indent: 82),
+              itemBuilder: (_, i) {
+                final item = _items[i];
+                return _HistoryRow(
+                  item: item,
+                  onTap: () {
+                    context.push(
+                      '/detail',
+                      extra: DetailArgs(
+                        contentUrl: item.contentUrl,
+                        autoPlay: true,
+                        resumeEpisodeIndex: item.episodeIndex,
+                        provider: item.provider,
+                      ),
+                    );
+                  },
+                  onDismissed: () => _removeItem(item),
+                );
+              },
             ),
           SliverToBoxAdapter(child: SizedBox(height: bottomPad + 24)),
         ],
@@ -208,7 +213,7 @@ class _HistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: ValueKey(item.contentUrl),
+      key: ValueKey(item.storageKey),
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onDismissed(),
       background: Container(
@@ -380,11 +385,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.history_rounded,
-            color: AppColors.textHint,
-            size: 52,
-          ),
+          Icon(Icons.history_rounded, color: AppColors.textHint, size: 52),
           SizedBox(height: 14),
           Text(
             'No watch history yet',
@@ -397,10 +398,7 @@ class _EmptyState extends StatelessWidget {
           SizedBox(height: 4),
           Text(
             'Start watching to see your history here',
-            style: TextStyle(
-              color: AppColors.textHint,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: AppColors.textHint, fontSize: 13),
           ),
         ],
       ),
