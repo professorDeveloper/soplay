@@ -19,6 +19,7 @@ import 'package:soplay/features/download/data/download_service.dart';
 import 'package:soplay/features/download/domain/entities/download_item.dart';
 import 'package:soplay/features/history/data/history_service.dart';
 import 'package:soplay/features/history/domain/entities/history_item.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -73,6 +74,7 @@ class _PlayerPageState extends State<PlayerPage>
   int _currentSourceIndex = -1;
   bool _autoFallbackUsed = false;
   String? _errorMessage;
+  bool _isCodecError = false;
   bool _initializing = true;
   _LoadingStage _stage = _LoadingStage.loading;
   bool _controlsVisible = true;
@@ -368,6 +370,7 @@ class _PlayerPageState extends State<PlayerPage>
       _initializing = true;
       _stage = _LoadingStage.resolving;
       _errorMessage = null;
+      _isCodecError = false;
       _episodeIndex = index;
       _panel = _SidePanel.none;
     });
@@ -547,6 +550,7 @@ class _PlayerPageState extends State<PlayerPage>
       _initializing = true;
       _stage = _LoadingStage.loading;
       _errorMessage = null;
+      _isCodecError = false;
       _currentQuality = source.quality;
       _currentSourceIndex = idx >= 0 ? idx : _currentSourceIndex;
       _autoFallbackUsed = false;
@@ -664,6 +668,7 @@ class _PlayerPageState extends State<PlayerPage>
       setState(() {
         _initializing = false;
         _errorMessage = null;
+      _isCodecError = false;
       });
       _scheduleHide();
     } on PlatformException catch (e) {
@@ -677,13 +682,14 @@ class _PlayerPageState extends State<PlayerPage>
           raw.contains('-12906') ||
           raw.contains('-12939') ||
           raw.contains('CoreMediaError')) {
-        msg =
-            'This video format is not supported on your device. Try a different quality.';
         if (!_autoFallbackUsed && _videoSources.length > 1) {
           _autoRetrying = true;
           _autoRetry();
           return;
         }
+        _isCodecError = true;
+        msg =
+            'This video format is not supported on your device. You can try playing it in your browser.';
       } else if (_isRecoverableError(raw) && _retryAttempts < 2) {
         debugPrint('[PLAYER] recoverable error, retrying (attempt ${_retryAttempts + 1})');
         _retryAttempts++;
@@ -840,6 +846,7 @@ class _PlayerPageState extends State<PlayerPage>
         _initializing = true;
         _stage = _LoadingStage.loading;
         _errorMessage = null;
+      _isCodecError = false;
         _currentSourceIndex = nextIdx;
         _currentQuality = next.quality;
       });
@@ -871,6 +878,7 @@ class _PlayerPageState extends State<PlayerPage>
           ? _LoadingStage.resolving
           : _LoadingStage.loading;
       _errorMessage = null;
+      _isCodecError = false;
     });
     await _disposeController();
     await Future<void>.delayed(const Duration(milliseconds: 350));
@@ -1627,6 +1635,7 @@ class _PlayerPageState extends State<PlayerPage>
         _initializing = true;
         _stage = _LoadingStage.loading;
         _errorMessage = null;
+      _isCodecError = false;
       });
       await _disposeController();
       await _initializeWith(
@@ -1717,6 +1726,23 @@ class _PlayerPageState extends State<PlayerPage>
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('Try again'),
                 ),
+                if (_isCodecError && _videoUrl != null) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      launchUrl(
+                        Uri.parse(_videoUrl!),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                    icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                    label: const Text('Play in Browser'),
+                  ),
+                ],
               ],
             ),
           ),
