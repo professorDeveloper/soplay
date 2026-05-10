@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/di/injection.dart';
@@ -16,26 +18,7 @@ class HomeTopBar extends StatelessWidget {
     final topPad = MediaQuery.of(context).padding.top;
     final progress = blurProgress.clamp(0.0, 1.0);
 
-    final content = Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.80 * (1 - progress)),
-            Colors.black.withValues(alpha: 0.0),
-          ],
-        ),
-        color: AppColors.navBackground.withValues(alpha: 0.72 * progress),
-        border: progress > 0.05
-            ? Border(
-                bottom: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.06 * progress),
-                  width: 0.5,
-                ),
-              )
-            : null,
-      ),
+    final bar = Padding(
       padding: EdgeInsets.fromLTRB(20, topPad + 10, 12, 10),
       child: Row(
         children: [
@@ -60,7 +43,48 @@ class HomeTopBar extends StatelessWidget {
       ),
     );
 
-    return content;
+    // No scroll — gradient scrim over banner
+    if (progress < 0.01) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withValues(alpha: 0.80),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: bar,
+      );
+    }
+
+    // Scrolling — frosted glass blur
+    return RepaintBoundary(
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 14 * progress,
+            sigmaY: 14 * progress,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.navBackground.withValues(alpha: 0.72 * progress),
+              border: progress > 0.05
+                  ? Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.07 * progress),
+                        width: 0.5,
+                      ),
+                    )
+                  : null,
+            ),
+            child: bar,
+          ),
+        ),
+      ),
+    );
   }
 }
 

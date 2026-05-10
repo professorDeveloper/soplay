@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -30,10 +33,32 @@ class _ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<_ProfileView> {
+  final _scrollController = ScrollController();
+  final _headerBlur = ValueNotifier<double>(0.0);
+
+  static const double _headerContentHeight = 58.0;
+
   @override
   void initState() {
     super.initState();
     context.read<AuthBloc>().add(const AuthStarted());
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _headerBlur.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final next = (_scrollController.offset / 80.0).clamp(0.0, 1.0);
+    if ((next - _headerBlur.value).abs() > 0.01) {
+      _headerBlur.value = next;
+    }
   }
 
   Future<void> _onRefresh() async {
@@ -46,48 +71,101 @@ class _ProfileViewState extends State<_ProfileView> {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.paddingOf(context).top;
     final bottomPad = MediaQuery.paddingOf(context).bottom;
+    final headerH = topPad + _headerContentHeight;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        color: AppColors.primary,
-        backgroundColor: AppColors.surface,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: SizedBox(height: topPad + 16)),
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Profile',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
+      body: Stack(
+        children: [
+          // Subtle gradient background
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF1E1416), Color(0xFF181818), Color(0xFF101010)],
+                stops: [0, 0.35, 1],
+              ),
+            ),
+            child: SizedBox.expand(),
+          ),
+          RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: AppColors.primary,
+            backgroundColor: AppColors.surface,
+            edgeOffset: headerH,
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(child: SizedBox(height: headerH + 16)),
+                SliverToBoxAdapter(
+                  child: BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      final user =
+                          state is AuthLoaded ? state.token.user : null;
+                      return _ProfileHeader(user: user);
+                    },
                   ),
                 ),
-              ),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                const SliverToBoxAdapter(child: _ProvidersSection()),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                const SliverToBoxAdapter(child: _WatchHistorySection()),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                const SliverToBoxAdapter(child: _AboutSection()),
+                SliverToBoxAdapter(child: SizedBox(height: bottomPad + 96)),
+              ],
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            SliverToBoxAdapter(
-              child: BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  final user = state is AuthLoaded ? state.token.user : null;
-                  return _ProfileHeader(user: user);
-                },
-              ),
+          ),
+          // Blur header
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _headerBlur,
+              builder: (_, blur, _) {
+                final progress = blur.clamp(0.0, 1.0);
+                final content = Container(
+                  padding: EdgeInsets.fromLTRB(20, topPad + 14, 16, 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.navBackground
+                        .withValues(alpha: 0.78 * progress),
+                    border: progress > 0.05
+                        ? Border(
+                            bottom: BorderSide(
+                              color: Colors.white
+                                  .withValues(alpha: 0.07 * progress),
+                              width: 0.5,
+                            ),
+                          )
+                        : null,
+                  ),
+                  child: const Text(
+                    'Profile',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      height: 1.05,
+                    ),
+                  ),
+                );
+                if (progress < 0.01) return content;
+                return ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: 20 * progress,
+                      sigmaY: 20 * progress,
+                    ),
+                    child: content,
+                  ),
+                );
+              },
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 10)),
-            const SliverToBoxAdapter(child: _ProvidersSection()),
-            const SliverToBoxAdapter(child: SizedBox(height: 10)),
-            const SliverToBoxAdapter(child: _WatchHistorySection()),
-            const SliverToBoxAdapter(child: SizedBox(height: 10)),
-            const SliverToBoxAdapter(child: _AboutSection()),
-            SliverToBoxAdapter(child: SizedBox(height: bottomPad + 96)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -105,6 +183,10 @@ class _ProfileHeader extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+            width: 0.5,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: user == null
@@ -122,7 +204,7 @@ class _GuestContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -132,13 +214,22 @@ class _GuestContent extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.25),
+                      AppColors.primaryDark.withValues(alpha: 0.15),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: const Icon(
                   Icons.person_outline_rounded,
-                  color: AppColors.textHint,
+                  color: AppColors.primaryLight,
                   size: 28,
                 ),
               ),
@@ -169,14 +260,19 @@ class _GuestContent extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
-            height: 46,
+            height: 48,
             child: ElevatedButton.icon(
               onPressed: onLogin,
               icon: const Icon(Icons.login_rounded, size: 18),
               label: const Text('Sign In'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ],
@@ -894,6 +990,8 @@ class _AboutSection extends StatelessWidget {
                 ),
                 onTap: () => _showDeveloper(context),
               ),
+              Divider(color: AppColors.divider, height: 1),
+              const _ServerCountdownTile(),
             ],
           ),
           const SizedBox(height: 16),
@@ -948,9 +1046,12 @@ class _SocialIcon extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+                width: 0.5,
+              ),
             ),
-            child: Icon(icon, color: AppColors.textPrimary, size: 24),
+            child: Icon(icon, color: AppColors.textSecondary, size: 22),
           ),
           const SizedBox(height: 6),
           Text(
@@ -958,7 +1059,7 @@ class _SocialIcon extends StatelessWidget {
             style: const TextStyle(
               color: AppColors.textHint,
               fontSize: 10,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -1042,7 +1143,11 @@ class _SectionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.05),
+          width: 0.5,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
@@ -1099,7 +1204,7 @@ class _Tile extends StatelessWidget {
                 height: 34,
                 decoration: BoxDecoration(
                   color: AppColors.textSecondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: AppColors.textSecondary, size: 18),
               ),
@@ -1133,20 +1238,31 @@ class _Avatar extends StatelessWidget {
     final initials = _initials(user.displayIdentifier);
 
     return Container(
-      width: 62,
-      height: 62,
+      width: 66,
+      height: 66,
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryDark],
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: photoUrl != null && photoUrl.isNotEmpty
-          ? Image.network(
-              photoUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, e, s) => _Initials(initials: initials),
-            )
-          : _Initials(initials: initials),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: photoUrl != null && photoUrl.isNotEmpty
+            ? Image.network(
+                photoUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, e, s) => _Initials(initials: initials),
+              )
+            : _Initials(initials: initials),
+      ),
     );
   }
 
@@ -1219,6 +1335,291 @@ class _ProviderFallback extends StatelessWidget {
           color: AppColors.textSecondary,
           fontWeight: FontWeight.w800,
           fontSize: size * 0.38,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Server Countdown Tile ──────────────────────────────────────
+
+class _ServerCountdownTile extends StatefulWidget {
+  const _ServerCountdownTile();
+
+  @override
+  State<_ServerCountdownTile> createState() => _ServerCountdownTileState();
+}
+
+class _ServerCountdownTileState extends State<_ServerCountdownTile> {
+  static final DateTime _deadline = DateTime.utc(2026, 10, 1);
+  late final Timer _timer;
+  final _remaining = ValueNotifier<Duration>(Duration.zero);
+
+  @override
+  void initState() {
+    super.initState();
+    _updateRemaining();
+    _timer =
+        Timer.periodic(const Duration(seconds: 1), (_) => _updateRemaining());
+  }
+
+  void _updateRemaining() {
+    final diff = _deadline.difference(DateTime.now().toUtc());
+    _remaining.value = diff.isNegative ? Duration.zero : diff;
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    _remaining.dispose();
+    super.dispose();
+  }
+
+  void _showSupportSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ServerSupportSheet(remaining: _remaining),
+    );
+  }
+
+  static String _fmt(Duration rem) {
+    final d = rem.inDays;
+    final h = rem.inHours.remainder(24);
+    final m = rem.inMinutes.remainder(60);
+    final s = rem.inSeconds.remainder(60);
+    if (d > 0) return '${d}d ${h}h ${m}m';
+    return '${h}h ${m}m ${s}s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showSupportSheet(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.dns_outlined,
+                  color: AppColors.textSecondary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Text(
+                  'Server',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              ValueListenableBuilder<Duration>(
+                valueListenable: _remaining,
+                builder: (_, rem, _) {
+                  return Text(
+                    rem == Duration.zero ? 'Expired' : _fmt(rem),
+                    style: TextStyle(
+                      color: rem == Duration.zero
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontSize: 13,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textHint,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServerSupportSheet extends StatelessWidget {
+  const _ServerSupportSheet({required this.remaining});
+
+  final ValueNotifier<Duration> remaining;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.dns_rounded,
+              color: AppColors.textSecondary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Keep Sozo Running',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Live countdown
+          ValueListenableBuilder<Duration>(
+            valueListenable: remaining,
+            builder: (_, rem, _) {
+              final expired = rem == Duration.zero;
+              if (expired) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Server Expired',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }
+              final d = rem.inDays;
+              final h = rem.inHours.remainder(24);
+              final m = rem.inMinutes.remainder(60);
+              final s = rem.inSeconds.remainder(60);
+              return Row(
+                children: [
+                  _SheetCountdownCell(value: d, label: 'Days'),
+                  const SizedBox(width: 8),
+                  _SheetCountdownCell(value: h, label: 'Hours'),
+                  const SizedBox(width: 8),
+                  _SheetCountdownCell(value: m, label: 'Min'),
+                  const SizedBox(width: 8),
+                  _SheetCountdownCell(value: s, label: 'Sec'),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          ValueListenableBuilder<Duration>(
+            valueListenable: remaining,
+            builder: (_, rem, _) {
+              final expired = rem == Duration.zero;
+              return Text(
+                expired
+                    ? 'The server has expired and content can no longer be loaded. Your support can help bring it back online.'
+                    : 'Sozo relies on a server that needs periodic renewal. If you enjoy using the app, your support helps keep everything running smoothly.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                launchUrl(
+                  Uri.parse('https://t.me/ackles'),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+              icon: const Icon(Icons.favorite_rounded, size: 18),
+              label: const Text('Support the Developer'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetCountdownCell extends StatelessWidget {
+  const _SheetCountdownCell({required this.value, required this.label});
+
+  final int value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value.toString().padLeft(2, '0'),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                height: 1,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textHint,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

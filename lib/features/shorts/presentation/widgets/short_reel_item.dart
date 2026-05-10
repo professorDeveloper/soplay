@@ -40,6 +40,7 @@ class _ShortReelItemState extends State<ShortReelItem>
   bool _showHeart = false;
   Offset _heartPos = Offset.zero;
   bool _muted = false;
+  bool _tickerEnabled = true;
 
   late final AnimationController _playPauseAnim = AnimationController(
     vsync: this,
@@ -69,6 +70,22 @@ class _ShortReelItemState extends State<ShortReelItem>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final enabled = TickerMode.valuesOf(context).enabled;
+    if (enabled != _tickerEnabled) {
+      _tickerEnabled = enabled;
+      if (!enabled) {
+        _vpc?.pause();
+        _discAnim.stop();
+      } else if (widget.active) {
+        _vpc?.play();
+        _discAnim.repeat();
+      }
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant ShortReelItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.short.id != widget.short.id ||
@@ -84,7 +101,7 @@ class _ShortReelItemState extends State<ShortReelItem>
         _discAnim.stop();
         _hideControlsNow();
         if (_speedBoosting) _stopSpeedBoost();
-      } else {
+      } else if (_tickerEnabled) {
         _vpc?.play();
         _discAnim.repeat();
       }
@@ -129,7 +146,7 @@ class _ShortReelItemState extends State<ShortReelItem>
       c.addListener(_onTick);
       c.setVolume(_muted ? 0.0 : 1.0);
       _vpc = c;
-      if (widget.active) {
+      if (widget.active && _tickerEnabled) {
         c.play();
         _discAnim.repeat();
       }

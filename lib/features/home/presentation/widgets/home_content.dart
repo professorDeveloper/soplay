@@ -79,9 +79,9 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   void _handleScroll() {
-    final next = _scrollController.hasClients
-        ? (_scrollController.offset / 96).clamp(0.0, 1.0)
-        : 0.0;
+    if (!_scrollController.hasClients) return;
+    // Blur starts after banner area (~250px) and completes by ~400px
+    final next = ((_scrollController.offset - 250) / 150).clamp(0.0, 1.0);
     if ((next - _blurProgress.value).abs() < 0.02) return;
     _blurProgress.value = next;
   }

@@ -9,10 +9,10 @@ class GenreModel extends GenreEntity {
   });
 
   factory GenreModel.fromJson(Map<String, dynamic> json) => GenreModel(
-    provider: json['provider'],
-    slug: json['slug'],
-    url: json['url'],
-    image: json['image'],
+    provider: json['provider'] as String? ?? '',
+    slug: json['slug'] as String? ?? '',
+    url: json['url'] as String? ?? '',
+    image: json['image'] as String? ?? '',
   );
 
   Map<String, dynamic> toJson() => {

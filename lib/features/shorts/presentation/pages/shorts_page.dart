@@ -240,15 +240,17 @@ class _ShortsViewState extends State<_ShortsView>
                               right: 0,
                               child: IgnorePointer(
                                 child: Container(
-                                  height: topPad + 50,
+                                  height: topPad + 60,
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        Colors.black.withValues(alpha: 0.5),
+                                        Colors.black.withValues(alpha: 0.7),
+                                        Colors.black.withValues(alpha: 0.3),
                                         Colors.transparent,
                                       ],
+                                      stops: const [0.0, 0.5, 1.0],
                                     ),
                                   ),
                                   padding: EdgeInsets.only(

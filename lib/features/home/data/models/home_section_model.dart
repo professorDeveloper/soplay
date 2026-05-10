@@ -13,10 +13,12 @@ class HomeSectionModel extends HomeSectionEntity {
 
   factory HomeSectionModel.fromJson(Map<String, dynamic> json) {
     return HomeSectionModel(
-      key: json['key'] as String,
-      label: json['label'] as String,
-      viewAll: ViewAllModel.fromJson(json['viewAll']),
-      items: (json['items'] as List)
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      viewAll: json['viewAll'] is Map<String, dynamic>
+          ? ViewAllModel.fromJson(json['viewAll'] as Map<String, dynamic>)
+          : ViewAllModel(slug: '', type: ''),
+      items: (json['items'] as List? ?? [])
           .map((e) => MovieModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );

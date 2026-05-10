@@ -6,12 +6,37 @@ class ShortsLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
+    return ColoredBox(
       color: Colors.black,
       child: Center(
-        child: CircularProgressIndicator(
-          color: AppColors.primary,
-          strokeWidth: 2.6,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(14),
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Loading shorts...',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -71,7 +96,7 @@ class _ShortsMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.background,
+      color: Colors.black,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -82,18 +107,25 @@ class _ShortsMessage extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white12, width: 1.5),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    width: 1.5,
+                  ),
                 ),
-                child: Icon(icon, color: AppColors.textSecondary, size: 38),
+                child: Icon(
+                  icon,
+                  color: AppColors.primaryLight,
+                  size: 36,
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
               Text(
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.3,
@@ -104,7 +136,7 @@ class _ShortsMessage extends StatelessWidget {
                 message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: AppColors.textSecondary,
+                  color: Colors.white54,
                   fontSize: 13.5,
                   height: 1.5,
                 ),
@@ -112,8 +144,8 @@ class _ShortsMessage extends StatelessWidget {
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: 28),
                 SizedBox(
-                  width: 160,
-                  height: 44,
+                  width: 170,
+                  height: 46,
                   child: ElevatedButton.icon(
                     onPressed: onAction,
                     icon: const Icon(Icons.refresh_rounded, size: 18),
@@ -126,7 +158,7 @@ class _ShortsMessage extends StatelessWidget {
                     ),
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(23),
                       ),
                     ),
                   ),
