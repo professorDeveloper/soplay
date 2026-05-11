@@ -36,12 +36,33 @@ class HistoryService {
       episodeNumber: episodeNumber,
     );
     final raw = _box.get(key) ?? _box.get(contentUrl);
-    if (raw is! String) return null;
-    try {
-      return HistoryItem.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    } catch (_) {
-      return null;
+    if (raw is String) {
+      try {
+        return HistoryItem.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      } catch (_) {}
     }
+    if (episodeIndex == null && episodeNumber == null) {
+      return _getLatestForContent(contentUrl);
+    }
+    return null;
+  }
+
+  HistoryItem? _getLatestForContent(String contentUrl) {
+    final prefix = '$contentUrl::episode::';
+    HistoryItem? latest;
+    for (final key in _box.keys) {
+      if (key is! String || !key.startsWith(prefix)) continue;
+      try {
+        final raw = _box.get(key);
+        if (raw is! String) continue;
+        final item =
+            HistoryItem.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        if (latest == null || item.watchedAt > latest.watchedAt) {
+          latest = item;
+        }
+      } catch (_) {}
+    }
+    return latest;
   }
 
   Future<void> save(HistoryItem item) async {
