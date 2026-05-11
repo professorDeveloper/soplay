@@ -494,7 +494,7 @@ class _ShortsRefreshShowcaseCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: const Text(
-                    'Tushunarli',
+                    'Okay',
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 12,

@@ -118,7 +118,6 @@ class _ShortsViewState extends State<_ShortsView>
 
     var contentUrl = short.contentUrl.trim();
 
-    // Feed may not return contentUrl — fetch full short by ID
     if (contentUrl.isEmpty && short.id.isNotEmpty) {
       final result = await getIt<GetShortUseCase>()(short.id);
       if (!mounted) return;
@@ -140,7 +139,6 @@ class _ShortsViewState extends State<_ShortsView>
       return;
     }
 
-    // Fallback: browse by genre tag
     final slug = short.tags.isNotEmpty ? short.tags.first : '';
     if (slug.isNotEmpty) {
       await context.push(
