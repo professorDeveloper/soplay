@@ -15,6 +15,7 @@ class PlayerArgs {
   final String? initialLang;
   final Duration resumePosition;
   final bool showDownloadAction;
+  final String? thumbnails;
 
   const PlayerArgs({
     required this.title,
@@ -30,6 +31,7 @@ class PlayerArgs {
     this.initialLang,
     this.resumePosition = Duration.zero,
     this.showDownloadAction = true,
+    this.thumbnails,
   });
 
   bool get isSerial => episodes.isNotEmpty;

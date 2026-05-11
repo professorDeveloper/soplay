@@ -10,6 +10,7 @@ class PlaybackEntity {
   final String? playerSrc;
   final String? type;
   final Map<String, String> headers;
+  final String? thumbnails;
   final int page;
   final int size;
   final int total;
@@ -25,6 +26,7 @@ class PlaybackEntity {
     required this.playerSrc,
     required this.headers,
     this.type,
+    this.thumbnails,
     this.page = 1,
     this.size = 100,
     this.total = 0,

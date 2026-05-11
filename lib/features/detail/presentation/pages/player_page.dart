@@ -88,6 +88,10 @@ class _PlayerPageState extends State<PlayerPage>
   int _activeSubtitleIndex = -1;
   ClosedCaptionFile? _captionFile;
 
+  String? _thumbnailsUrl;
+  List<_VttThumbnail> _vttThumbnails = const [];
+  final ValueNotifier<double?> _sliderDragValue = ValueNotifier<double?>(null);
+
   double _playbackSpeed = 1.0;
   _PlayerFit _fit = _PlayerFit.contain;
   bool _isPortrait = false;
@@ -339,6 +343,7 @@ class _PlayerPageState extends State<PlayerPage>
           : null;
       _currentQuality = source?.quality;
       if (mounted) setState(() => _stage = _LoadingStage.loading);
+      unawaited(_loadThumbnailsVtt(widget.args.thumbnails));
       await _initializeWith(
         url: source?.videoUrl ?? widget.args.movieUrl ?? '',
         headers: widget.args.headers,
@@ -411,7 +416,7 @@ class _PlayerPageState extends State<PlayerPage>
         setState(() {
           _stage = _LoadingStage.loading;
           _serverLangs = value.languagesAvailable;
-          _currentLang = value.activeLang ?? lang ?? _currentLang;
+          _currentLang = lang ?? value.activeLang ?? _currentLang;
           _videoSources = useSources ? List.of(sources) : const [];
           _currentSourceIndex = pickedIdx;
           _currentQuality = useSources ? sources[pickedIdx].quality : null;
@@ -420,6 +425,7 @@ class _PlayerPageState extends State<PlayerPage>
           _activeSubtitleIndex = -1;
           _captionFile = null;
         });
+        unawaited(_loadThumbnailsVtt(value.thumbnails));
         await _initializeWith(
           url: url,
           headers: value.headers,
@@ -927,6 +933,7 @@ class _PlayerPageState extends State<PlayerPage>
     _scrub.dispose();
     _speedBoost.dispose();
     _swipeIndicator.dispose();
+    _sliderDragValue.dispose();
     final c = _controller;
     if (c != null) {
       c.removeListener(_onMajorChange);
@@ -992,6 +999,29 @@ class _PlayerPageState extends State<PlayerPage>
     if (c == null || !c.value.isInitialized) return;
     c.seekTo(position);
     _scheduleHide();
+  }
+
+  void _clearDragAfterSeek(Duration target) {
+    void listener() {
+      final c = _controller;
+      if (c == null) {
+        _sliderDragValue.value = null;
+        return;
+      }
+      final diff = (c.value.position - target).inMilliseconds.abs();
+      if (diff < 500) {
+        c.removeListener(listener);
+        _sliderDragValue.value = null;
+      }
+    }
+    _controller?.addListener(listener);
+    Future.delayed(const Duration(seconds: 1), () {
+      _controller?.removeListener(listener);
+      if (_sliderDragValue.value != null &&
+          _sliderDragValue.value == target.inMilliseconds.toDouble()) {
+        _sliderDragValue.value = null;
+      }
+    });
   }
 
   void _exit() {
@@ -1235,6 +1265,38 @@ class _PlayerPageState extends State<PlayerPage>
     } catch (e) {
       debugPrint('[PLAYER] subtitle load error: $e');
     }
+  }
+
+  Future<void> _loadThumbnailsVtt(String? url) async {
+    if (url == null || url.isEmpty) {
+      _thumbnailsUrl = null;
+      _vttThumbnails = const [];
+      return;
+    }
+    if (url == _thumbnailsUrl && _vttThumbnails.isNotEmpty) return;
+    _thumbnailsUrl = url;
+    try {
+      final response = await Dio().get<String>(
+        url,
+        options: Options(responseType: ResponseType.plain),
+      );
+      if (!mounted) return;
+      final body = response.data;
+      if (body != null && body.isNotEmpty) {
+        _vttThumbnails = _VttThumbnail.parse(body, url);
+        debugPrint('[PLAYER] loaded ${_vttThumbnails.length} VTT thumbnails');
+      }
+    } catch (e) {
+      debugPrint('[PLAYER] VTT thumbnails load error: $e');
+      _vttThumbnails = const [];
+    }
+  }
+
+  _VttThumbnail? _thumbnailAt(Duration position) {
+    for (final t in _vttThumbnails) {
+      if (t.contains(position)) return t;
+    }
+    return null;
   }
 
   void _disableSubtitle() {
@@ -1875,17 +1937,26 @@ class _PlayerPageState extends State<PlayerPage>
         final preview = state.previewPosition(_scrubSecondsPerFullSwipe);
         final deltaSeconds = (preview - state.baseline).inSeconds;
         final isForward = deltaSeconds >= 0;
+        final thumb = _thumbnailAt(preview);
         return IgnorePointer(
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (thumb != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _buildThumbnailImage(thumb),
+                      ),
+                    ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1907,7 +1978,7 @@ class _PlayerPageState extends State<PlayerPage>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     '${_formatDuration(preview)} / ${_formatDuration(state.duration)}',
                     style: TextStyle(
@@ -1922,6 +1993,54 @@ class _PlayerPageState extends State<PlayerPage>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildThumbnailImage(_VttThumbnail thumb) {
+    const double displayWidth = 160;
+    const double displayHeight = 90;
+
+    if (thumb.hasSprite) {
+      final sx = displayWidth / thumb.w;
+      final sy = displayHeight / thumb.h;
+      return SizedBox(
+        width: displayWidth,
+        height: displayHeight,
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            maxWidth: double.infinity,
+            maxHeight: double.infinity,
+            child: Transform(
+              transform: Matrix4.diagonal3Values(sx, sy, 1.0)
+                ..setTranslationRaw(
+                    -thumb.x * sx, -thumb.y * sy, 0.0),
+              child: Image.network(
+                thumb.imageUrl,
+                filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => SizedBox(
+                  width: displayWidth,
+                  height: displayHeight,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Image.network(
+      thumb.imageUrl,
+      width: displayWidth,
+      height: displayHeight,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.low,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) => const SizedBox(
+        width: displayWidth,
+        height: displayHeight,
+      ),
     );
   }
 
@@ -2330,64 +2449,136 @@ class _PlayerPageState extends State<PlayerPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ValueListenableBuilder<VideoPlayerValue>(
-                valueListenable: c,
-                builder: (_, value, _) {
-                  final position = value.position;
-                  final duration = value.duration.inMilliseconds == 0
-                      ? Duration.zero
-                      : value.duration;
-                  return Row(
-                    children: [
-                      Text(
-                        _formatDuration(position),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Expanded(
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 7,
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 14,
-                            ),
-                            activeTrackColor: AppColors.primary,
-                            inactiveTrackColor: Colors.white24,
-                            thumbColor: Colors.white,
-                            overlayColor: AppColors.primary.withValues(
-                              alpha: 0.2,
-                            ),
+              ValueListenableBuilder<double?>(
+                valueListenable: _sliderDragValue,
+                builder: (_, dragVal, _) {
+                  return ValueListenableBuilder<VideoPlayerValue>(
+                    valueListenable: c,
+                    builder: (_, value, _) {
+                      final duration = value.duration.inMilliseconds == 0
+                          ? Duration.zero
+                          : value.duration;
+                      final maxMs = duration.inMilliseconds
+                          .toDouble()
+                          .clamp(1.0, double.infinity);
+                      final sliderVal = dragVal ??
+                          (duration.inMilliseconds == 0
+                              ? 0.0
+                              : value.position.inMilliseconds
+                                    .clamp(0, duration.inMilliseconds)
+                                    .toDouble());
+                      final displayPos = dragVal != null
+                          ? Duration(milliseconds: dragVal.toInt())
+                          : value.position;
+
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                        const sliderPad = 24.0;
+                        const thumbW = 160.0;
+                        final trackWidth =
+                            constraints.maxWidth - 80 - sliderPad * 2;
+                        final fraction = maxMs > 0
+                            ? (sliderVal / maxMs).clamp(0.0, 1.0)
+                            : 0.0;
+                        final thumbCenter =
+                            40 + sliderPad + fraction * trackWidth;
+                        final popupLeft = (thumbCenter - thumbW / 2)
+                            .clamp(0.0, constraints.maxWidth - thumbW);
+
+                        return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (dragVal != null && _vttThumbnails.isNotEmpty)
+                            Builder(builder: (_) {
+                              final thumb = _thumbnailAt(displayPos);
+                              if (thumb == null) return const SizedBox.shrink();
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                    left: popupLeft, bottom: 6),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                        child: _buildThumbnailImage(thumb),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatDuration(displayPos),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          Row(
+                            children: [
+                              Text(
+                                _formatDuration(displayPos),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 3,
+                                    thumbShape: const RoundSliderThumbShape(
+                                      enabledThumbRadius: 7,
+                                    ),
+                                    overlayShape:
+                                        const RoundSliderOverlayShape(
+                                      overlayRadius: 14,
+                                    ),
+                                    activeTrackColor: AppColors.primary,
+                                    inactiveTrackColor: Colors.white24,
+                                    thumbColor: Colors.white,
+                                    overlayColor: AppColors.primary.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                  ),
+                                  child: Slider(
+                                    value: sliderVal.clamp(0.0, maxMs),
+                                    min: 0,
+                                    max: maxMs,
+                                    onChangeStart: (v) {
+                                      _sliderDragValue.value = v;
+                                    },
+                                    onChanged: (v) {
+                                      _sliderDragValue.value = v;
+                                    },
+                                    onChangeEnd: (v) {
+                                      final target = Duration(
+                                          milliseconds: v.toInt());
+                                      _seekTo(target);
+                                      _clearDragAfterSeek(target);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _formatDuration(duration),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                          child: Slider(
-                            value: duration.inMilliseconds == 0
-                                ? 0
-                                : position.inMilliseconds
-                                      .clamp(0, duration.inMilliseconds)
-                                      .toDouble(),
-                            min: 0,
-                            max: duration.inMilliseconds.toDouble().clamp(
-                              1,
-                              double.infinity,
-                            ),
-                            onChanged: (v) {
-                              _seekTo(Duration(milliseconds: v.toInt()));
-                            },
-                          ),
-                        ),
-                      ),
-                      Text(
-                        _formatDuration(duration),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                        },
+                      );
+                    },
                   );
                 },
               ),
@@ -3100,5 +3291,95 @@ class _ScrubState {
     final target = baseline.inMilliseconds + deltaMs;
     final clamped = target.clamp(0, duration.inMilliseconds);
     return Duration(milliseconds: clamped);
+  }
+}
+
+class _VttThumbnail {
+  final Duration start;
+  final Duration end;
+  final String imageUrl;
+  final int x;
+  final int y;
+  final int w;
+  final int h;
+
+  const _VttThumbnail({
+    required this.start,
+    required this.end,
+    required this.imageUrl,
+    this.x = 0,
+    this.y = 0,
+    this.w = 0,
+    this.h = 0,
+  });
+
+  bool get hasSprite => w > 0 && h > 0;
+
+  bool contains(Duration position) =>
+      position >= start && position < end;
+
+  static List<_VttThumbnail> parse(String vttBody, String baseUrl) {
+    final lines = vttBody.split('\n').map((l) => l.trim()).toList();
+    final results = <_VttThumbnail>[];
+    final timePattern = RegExp(
+      r'(\d{2}):(\d{2}):(\d{2})[\.,](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[\.,](\d{3})',
+    );
+
+    for (var i = 0; i < lines.length; i++) {
+      final match = timePattern.firstMatch(lines[i]);
+      if (match == null) continue;
+
+      final start = Duration(
+        hours: int.parse(match.group(1)!),
+        minutes: int.parse(match.group(2)!),
+        seconds: int.parse(match.group(3)!),
+        milliseconds: int.parse(match.group(4)!),
+      );
+      final end = Duration(
+        hours: int.parse(match.group(5)!),
+        minutes: int.parse(match.group(6)!),
+        seconds: int.parse(match.group(7)!),
+        milliseconds: int.parse(match.group(8)!),
+      );
+
+      String? imageRef;
+      for (var j = i + 1; j < lines.length; j++) {
+        if (lines[j].isNotEmpty) {
+          imageRef = lines[j];
+          break;
+        }
+      }
+      if (imageRef == null) continue;
+
+      var url = imageRef;
+      var x = 0, y = 0, w = 0, h = 0;
+      final hashIdx = imageRef.indexOf('#xywh=');
+      if (hashIdx >= 0) {
+        url = imageRef.substring(0, hashIdx);
+        final coords = imageRef.substring(hashIdx + 6).split(',');
+        if (coords.length == 4) {
+          x = int.tryParse(coords[0]) ?? 0;
+          y = int.tryParse(coords[1]) ?? 0;
+          w = int.tryParse(coords[2]) ?? 0;
+          h = int.tryParse(coords[3]) ?? 0;
+        }
+      }
+
+      if (!url.startsWith('http')) {
+        final baseUri = Uri.parse(baseUrl);
+        url = baseUri.resolve(url).toString();
+      }
+
+      results.add(_VttThumbnail(
+        start: start,
+        end: end,
+        imageUrl: url,
+        x: x,
+        y: y,
+        w: w,
+        h: h,
+      ));
+    }
+    return results;
   }
 }

@@ -9,6 +9,7 @@ class MediaResolveEntity {
   final List<String> languagesAvailable;
   final String? activeLang;
   final List<SubtitleEntity> subtitles;
+  final String? thumbnails;
 
   const MediaResolveEntity({
     required this.videoUrl,
@@ -18,5 +19,6 @@ class MediaResolveEntity {
     this.languagesAvailable = const [],
     this.activeLang,
     this.subtitles = const [],
+    this.thumbnails,
   });
 }

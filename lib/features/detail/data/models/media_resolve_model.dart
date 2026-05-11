@@ -11,6 +11,7 @@ class MediaResolveModel extends MediaResolveEntity {
     super.languagesAvailable,
     super.activeLang,
     super.subtitles,
+    super.thumbnails,
   });
 
   factory MediaResolveModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +24,7 @@ class MediaResolveModel extends MediaResolveEntity {
         .whereType<Map<String, dynamic>>()
         .map(SubtitleModel.fromJson)
         .toList(growable: false);
+    final thumbs = json['thumbnails'] as String?;
     return MediaResolveModel(
       videoUrl: json['videoUrl'] as String? ?? '',
       type: typeRaw == null || typeRaw.isEmpty ? null : typeRaw.toLowerCase(),
@@ -31,6 +33,7 @@ class MediaResolveModel extends MediaResolveEntity {
       languagesAvailable: _parseLangs(json['languagesAvailable']),
       activeLang: _parseActiveLang(json['server']),
       subtitles: subs,
+      thumbnails: thumbs == null || thumbs.isEmpty ? null : thumbs,
     );
   }
 

@@ -284,25 +284,29 @@ class _OtpField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Hidden TextField actually capturing input
         Positioned.fill(
-          child: Opacity(
-            opacity: 0,
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(length),
-              ],
-              onChanged: onChanged,
-              autofillHints: const [AutofillHints.oneTimeCode],
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(length),
+            ],
+            onChanged: onChanged,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            enableInteractiveSelection: false,
+            showCursor: false,
+            style: const TextStyle(color: Colors.transparent),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              counterText: '',
+              contentPadding: EdgeInsets.zero,
+              isCollapsed: true,
             ),
           ),
         ),
-        // Visible boxes
         AnimatedBuilder(
           animation: controller,
           builder: (context, _) {

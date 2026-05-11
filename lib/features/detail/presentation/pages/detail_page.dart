@@ -383,6 +383,7 @@ class _DetailViewState extends State<_DetailView>
         type: playback.type,
         videoSources: playback.videoSources,
         resumePosition: resumePos,
+        thumbnails: playback.thumbnails,
       ),
     );
   }
