@@ -10,6 +10,7 @@ class AppConstants {
   static const String downloadBox = 'download_box';
   static const String productsBox = 'products_box';
   static const String cartBox = 'cart_box';
+  static const String extractorsBox = 'extractors_box';
 
   static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';

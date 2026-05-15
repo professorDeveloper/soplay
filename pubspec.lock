@@ -106,7 +106,7 @@ packages:
     source: hosted
     version: "8.12.5"
   cached_network_image:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: cached_network_image
       sha256: "7c1183e361e5c8b0a0f21a28401eecdbde252441106a9816400dd4c2b2424916"
@@ -177,6 +177,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  cookie_jar:
+    dependency: "direct main"
+    description:
+      name: cookie_jar
+      sha256: "963da02c1ef64cb5ac20de948c9e5940aa351f1e34a12b1d327c83d85b7e8fff"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.9"
   cross_file:
     dependency: transitive
     description:
@@ -218,7 +226,7 @@ packages:
     source: hosted
     version: "3.1.7"
   dartz:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: dartz
       sha256: e6acf34ad2e31b1eb00948692468c30ab48ac8250e0f0df661e29f12dd252168
@@ -241,6 +249,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.9.2"
+  dio_cookie_manager:
+    dependency: "direct main"
+    description:
+      name: dio_cookie_manager
+      sha256: "0db1a7b997a0455e488ac35744c68eed3f2a4280d3ab531835a65641b0a08744"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.4.0"
   dio_web_adapter:
     dependency: transitive
     description:
@@ -250,7 +266,7 @@ packages:
     source: hosted
     version: "2.1.2"
   easy_localization:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: easy_localization
       sha256: "2ccdf9db8fe4d9c5a75c122e6275674508fd0f0d49c827354967b8afcc56bbed"
@@ -282,7 +298,7 @@ packages:
     source: hosted
     version: "1.3.3"
   ffi:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: ffi
       sha256: "6d7fd89431262d8f3125e81b50d3847a091d846eafcd4fdb88dd06f36d705a45"
@@ -306,7 +322,7 @@ packages:
     source: hosted
     version: "1.1.1"
   floating:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: floating
       sha256: e51ce1dbcab3ea83da0ad1b07f2091b99c0e8680184c780a000567f41234d454
@@ -335,7 +351,7 @@ packages:
     source: hosted
     version: "3.4.1"
   flutter_dotenv:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: flutter_dotenv
       sha256: b7c7be5cd9f6ef7a78429cabd2774d3c4af50e79cb2b7593e3d5d763ef95c61b
@@ -355,8 +371,16 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_svg:
+  flutter_qjs:
     dependency: "direct main"
+    description:
+      name: flutter_qjs
+      sha256: "123b6a2c95ceb4343a15a2bf4eb8e22f6f30d17c291b7a6c71f759906f817525"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.7"
+  flutter_svg:
+    dependency: "direct overridden"
     description:
       name: flutter_svg
       sha256: "1ded017b39c8e15c8948ea855070a5ff8ff8b3d5e83f3446e02d6bb12add7ad9"
@@ -414,7 +438,7 @@ packages:
     source: hosted
     version: "2.2.3"
   hive_flutter:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: hive_flutter
       sha256: dca1da446b1d808a51689fb5d0c6c9510c0a2ba01e22805d492c73b68e33eecc
@@ -494,7 +518,7 @@ packages:
     source: hosted
     version: "1.0.1"
   json_annotation:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: json_annotation
       sha256: cb09e7dac6210041fad964ed7fbee004f14258b4eca4040f72d1234062ace4c8
@@ -638,7 +662,7 @@ packages:
     source: hosted
     version: "3.2.1"
   palette_generator:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: palette_generator
       sha256: "4420f7ccc3f0a4a906144e73f8b6267cd940b64f57a7262e95cb8cec3a8ae0ed"
@@ -662,7 +686,7 @@ packages:
     source: hosted
     version: "1.1.0"
   path_provider:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: path_provider
       sha256: "50c5dd5b6e1aaf6fb3a78b33f6aa3afca52bf903a8a5298f53101fdaee55bbcd"
@@ -782,7 +806,7 @@ packages:
     source: hosted
     version: "0.28.0"
   share_plus:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: share_plus
       sha256: fce43200aa03ea87b91ce4c3ac79f0cecd52e2a7a56c7a4185023c271fbfa6da
@@ -870,7 +894,7 @@ packages:
     source: hosted
     version: "3.0.0"
   shimmer:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: shimmer
       sha256: "5f88c883a22e9f9f299e5ba0e4f7e6054857224976a5d9f839d4ebdc94a14ac9"
@@ -878,7 +902,7 @@ packages:
     source: hosted
     version: "3.0.0"
   showcaseview:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: showcaseview
       sha256: c92a9ea98c3a13191a88f93c1d75cbc3ba419f16e385ada89b1ee10f22f1bd96
@@ -1018,8 +1042,16 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_io:
+    dependency: transitive
+    description:
+      name: universal_io
+      sha256: f63cbc48103236abf48e345e07a03ce5757ea86285ed313a6a032596ed9301e2
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.1"
   url_launcher:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: url_launcher
       sha256: f6a7e5c4835bb4e3026a04793a4199ca2d14c739ec378fdfe23fc8075d0439f8
@@ -1123,7 +1155,7 @@ packages:
     source: hosted
     version: "2.2.0"
   video_player:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: video_player
       sha256: "48a7bdaa38a3d50ec10c78627abdbfad863fdf6f0d6e08c7c3c040cfd80ae36f"
@@ -1171,7 +1203,7 @@ packages:
     source: hosted
     version: "15.1.0"
   wakelock_plus:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       name: wakelock_plus
       sha256: "61713aa82b7f85c21c9f4cd0a148abd75f38a74ec645fcb1e446f882c82fd09b"

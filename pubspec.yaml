@@ -48,6 +48,14 @@ dependencies:
 
   # Network
   dio: ^5.8.0+1
+  dio_cookie_manager: ^3.2.0
+  cookie_jar: ^4.0.8
+
+  # JS engine
+  flutter_qjs: ^0.3.7
+
+dependency_overrides:
+  ffi: ^2.1.2
 
   # Local Storage
   hive_flutter: ^1.1.0

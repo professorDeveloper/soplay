@@ -1,5 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
+import 'package:soplay/core/js/dart_fetch.dart';
+import 'package:soplay/core/js/extractor_cache.dart';
+import 'package:soplay/core/js/extractor_remote.dart';
+import 'package:soplay/core/js/js_runtime_service.dart';
+import 'package:soplay/core/js/provider_registry.dart';
 import 'package:soplay/core/network/auth_interceptor.dart';
 import 'package:soplay/core/network/dio_client.dart';
 import 'package:soplay/core/network/logging_interceptor.dart';
@@ -109,11 +114,30 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<SearchRepository>(
     SearchRepositoryImp(dataSource: getIt<SearchDataSource>()),
   );
-  getIt.registerSingleton<DetailRepository>(
-    DetailRepositoryImpl(getIt<DetailDataSource>()),
-  );
   getIt.registerSingleton<ProviderDataSource>(
     ProviderDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<ProviderRegistry>(
+    ProviderRegistry(source: getIt<ProviderDataSource>()),
+  );
+  getIt.registerSingleton<ExtractorRemote>(
+    ExtractorRemote(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<ExtractorCache>(ExtractorCache());
+  getIt.registerSingleton<DartFetch>(DartFetch.create());
+  getIt.registerSingleton<JsRuntimeService>(
+    JsRuntimeService(
+      remote: getIt<ExtractorRemote>(),
+      cache: getIt<ExtractorCache>(),
+      dartFetch: getIt<DartFetch>(),
+      providers: getIt<ProviderRegistry>(),
+    ),
+  );
+  getIt.registerSingleton<DetailRepository>(
+    DetailRepositoryImpl(
+      getIt<DetailDataSource>(),
+      jsRuntime: getIt<JsRuntimeService>(),
+    ),
   );
   getIt.registerSingleton<CommentsDataSource>(
     CommentsDataSource(dio: getIt<Dio>()),

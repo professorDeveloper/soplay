@@ -8,6 +8,8 @@ class ProviderModel extends ProviderEntity {
     required super.url,
     required super.description,
     required super.domains,
+    super.mode,
+    super.extractor,
   });
 
   factory ProviderModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,18 @@ class ProviderModel extends ProviderEntity {
       domains: (json['domains'] as List<dynamic>? ?? [])
           .map((e) => e as String)
           .toList(),
+      mode: json['mode'] as String? ?? 'server',
+      extractor: _parseExtractor(json['extractor']),
     );
+  }
+
+  static ExtractorRef? _parseExtractor(dynamic raw) {
+    if (raw is! Map) return null;
+    final name = raw['name'] as String?;
+    final url = raw['url'] as String?;
+    if (name == null || name.isEmpty || url == null || url.isEmpty) return null;
+    final version = (raw['version'] as num?)?.toInt() ?? 0;
+    final scope = raw['scope'] as String? ?? 'resolveMedia';
+    return ExtractorRef(name: name, version: version, scope: scope, url: url);
   }
 }

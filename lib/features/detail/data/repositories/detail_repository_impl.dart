@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:soplay/core/error/result.dart';
+import 'package:soplay/core/js/js_runtime_service.dart';
 import 'package:soplay/features/detail/data/datasources/detail_data_source.dart';
+import 'package:soplay/features/detail/data/models/media_resolve_model.dart';
 import 'package:soplay/features/detail/domain/entities/detail_entity.dart';
 import 'package:soplay/features/detail/domain/entities/media_resolve_entity.dart';
 import 'package:soplay/features/detail/domain/entities/playback_entity.dart';
@@ -8,7 +11,9 @@ import 'package:soplay/features/detail/domain/repositories/detail_repository.dar
 
 class DetailRepositoryImpl implements DetailRepository {
   final DetailDataSource dataSource;
-  const DetailRepositoryImpl(this.dataSource);
+  final JsRuntimeService? jsRuntime;
+
+  const DetailRepositoryImpl(this.dataSource, {this.jsRuntime});
 
   @override
   Future<Result<DetailEntity>> getDetail(String contentUrl, {String? provider}) async {
@@ -57,6 +62,23 @@ class DetailRepositoryImpl implements DetailRepository {
     required String provider,
     String? lang,
   }) async {
+    final js = jsRuntime;
+    if (js != null) {
+      try {
+        final map = await js.tryResolveMedia(
+          provider: provider,
+          ref: ref,
+          lang: lang,
+        );
+        if (map != null) {
+          return Success(MediaResolveModel.fromJson(map));
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[resolveMedia] JS path failed: $e');
+        return Failure(Exception(_normalizeJsError(e)));
+      }
+    }
+
     try {
       return Success(
         await dataSource.resolveMedia(
@@ -79,6 +101,16 @@ class DetailRepositoryImpl implements DetailRepository {
     } catch (e) {
       return Failure(Exception(e.toString()));
     }
+  }
+
+  String _normalizeJsError(Object error) {
+    final raw = error.toString();
+    if (raw.contains('no playable source')) return 'Video manbasi topilmadi';
+    if (raw.contains('Invalid mediaRef')) {
+      return 'Provider versiyasi eskirgan';
+    }
+    if (raw.contains('No servers found')) return 'Episode uchun server yo\'q';
+    return raw.replaceFirst('Exception: ', '');
   }
 
   String _messageFrom(DioException e) {

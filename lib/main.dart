@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:soplay/core/constants/app_constants.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/js/js_runtime_service.dart';
 import 'package:soplay/features/download/data/download_service.dart';
 
 import 'app.dart';
@@ -19,6 +20,7 @@ void main() async {
 
   await configureDependencies();
   unawaited(getIt<DownloadService>().resumeIncomplete());
+  unawaited(getIt<JsRuntimeService>().ensureReady());
   unawaited(
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -46,6 +48,7 @@ Future<void> _initHive() async {
     Hive.openBox(AppConstants.settingsBox),
     Hive.openBox(AppConstants.historyBox),
     Hive.openBox(AppConstants.downloadBox),
+    Hive.openBox(AppConstants.extractorsBox),
   ]);
 }
 
