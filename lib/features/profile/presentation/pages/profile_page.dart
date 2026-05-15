@@ -616,20 +616,28 @@ class _ProviderListTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        provider.name,
-                        style: TextStyle(
-                          color: selected
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                          fontSize: 14,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          height: 1.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              provider.name,
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.textPrimary
+                                    : AppColors.textSecondary,
+                                fontSize: 14,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _ProviderModeBadge(mode: provider.mode),
+                        ],
                       ),
                       if (provider.description.isNotEmpty) ...[
                         const SizedBox(height: 2),
@@ -671,6 +679,39 @@ class _ProviderListTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderModeBadge extends StatelessWidget {
+  const _ProviderModeBadge({required this.mode});
+  final String mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = mode.toLowerCase();
+    final (label, color) = switch (normalized) {
+      'client' => ('Local', const Color(0xFF34A853)),
+      'hybrid' => ('Hybrid', const Color(0xFFF59E0B)),
+      'server' => ('Cloud', const Color(0xFF6B7280)),
+      _ => (mode.isEmpty ? 'Cloud' : mode, const Color(0xFF6B7280)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.45), width: 0.8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.4,
         ),
       ),
     );

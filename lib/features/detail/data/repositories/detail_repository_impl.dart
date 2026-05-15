@@ -2,8 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:soplay/core/error/result.dart';
 import 'package:soplay/core/js/js_runtime_service.dart';
+import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/features/detail/data/datasources/detail_data_source.dart';
+import 'package:soplay/features/detail/data/models/detail_model.dart';
 import 'package:soplay/features/detail/data/models/media_resolve_model.dart';
+import 'package:soplay/features/detail/data/models/playback_model.dart';
 import 'package:soplay/features/detail/domain/entities/detail_entity.dart';
 import 'package:soplay/features/detail/domain/entities/media_resolve_entity.dart';
 import 'package:soplay/features/detail/domain/entities/playback_entity.dart';
@@ -12,13 +15,35 @@ import 'package:soplay/features/detail/domain/repositories/detail_repository.dar
 class DetailRepositoryImpl implements DetailRepository {
   final DetailDataSource dataSource;
   final JsRuntimeService? jsRuntime;
+  final HiveService? hive;
 
-  const DetailRepositoryImpl(this.dataSource, {this.jsRuntime});
+  const DetailRepositoryImpl(
+    this.dataSource, {
+    this.jsRuntime,
+    this.hive,
+  });
+
+  String? _resolveProvider(String? provider) {
+    if (provider != null && provider.isNotEmpty) return provider;
+    final fromHive = hive?.getCurrentProvider();
+    if (fromHive != null && fromHive.isNotEmpty) return fromHive;
+    return null;
+  }
 
   @override
   Future<Result<DetailEntity>> getDetail(String contentUrl, {String? provider}) async {
+    final js = jsRuntime;
+    final effective = _resolveProvider(provider);
+    if (js != null && effective != null) {
+      try {
+        final map = await js.tryGetDetail(effective, contentUrl);
+        if (map != null) return Success(DetailModel.fromJson(map));
+      } catch (e) {
+        return Failure(Exception(_normalizeJsError(e)));
+      }
+    }
     try {
-      return Success(await dataSource.getDetail(contentUrl, provider: provider));
+      return Success(await dataSource.getDetail(contentUrl, provider: effective));
     } on DioException catch (e) {
       return Failure(Exception(_messageFrom(e)));
     } catch (e) {
@@ -34,6 +59,16 @@ class DetailRepositoryImpl implements DetailRepository {
     String sort = 'asc',
     String? provider,
   }) async {
+    final js = jsRuntime;
+    final effective = _resolveProvider(provider);
+    if (js != null && effective != null) {
+      try {
+        final map = await js.tryGetEpisodes(effective, contentUrl);
+        if (map != null) return Success(PlaybackModel.fromJson(map));
+      } catch (e) {
+        return Failure(Exception(_normalizeJsError(e)));
+      }
+    }
     try {
       return Success(
         await dataSource.getEpisodes(
@@ -41,7 +76,7 @@ class DetailRepositoryImpl implements DetailRepository {
           page: page,
           size: size,
           sort: sort,
-          provider: provider,
+          provider: effective,
         ),
       );
     } on DioException catch (e) {

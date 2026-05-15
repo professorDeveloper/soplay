@@ -108,12 +108,6 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<AuthRepository>(
     AuthRepositoryImpl(getIt<AuthRemoteDataSource>(), getIt<HiveService>()),
   );
-  getIt.registerSingleton<HomeRepository>(
-    HomeRepositoryImp(getIt<HomeDataSource>()),
-  );
-  getIt.registerSingleton<SearchRepository>(
-    SearchRepositoryImp(dataSource: getIt<SearchDataSource>()),
-  );
   getIt.registerSingleton<ProviderDataSource>(
     ProviderDataSource(dio: getIt<Dio>()),
   );
@@ -133,10 +127,25 @@ Future<void> configureDependencies() async {
       providers: getIt<ProviderRegistry>(),
     ),
   );
+  getIt.registerSingleton<HomeRepository>(
+    HomeRepositoryImp(
+      getIt<HomeDataSource>(),
+      jsRuntime: getIt<JsRuntimeService>(),
+      hive: getIt<HiveService>(),
+    ),
+  );
+  getIt.registerSingleton<SearchRepository>(
+    SearchRepositoryImp(
+      dataSource: getIt<SearchDataSource>(),
+      jsRuntime: getIt<JsRuntimeService>(),
+      hive: getIt<HiveService>(),
+    ),
+  );
   getIt.registerSingleton<DetailRepository>(
     DetailRepositoryImpl(
       getIt<DetailDataSource>(),
       jsRuntime: getIt<JsRuntimeService>(),
+      hive: getIt<HiveService>(),
     ),
   );
   getIt.registerSingleton<CommentsDataSource>(

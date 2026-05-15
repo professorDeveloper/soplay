@@ -52,10 +52,7 @@ dependencies:
   cookie_jar: ^4.0.8
 
   # JS engine
-  flutter_qjs: ^0.3.7
-
-dependency_overrides:
-  ffi: ^2.1.2
+  flutter_inappwebview: ^6.1.5
 
   # Local Storage
   hive_flutter: ^1.1.0
