@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/di/injection.dart';
+import 'package:soplay/core/error/result.dart';
 import 'package:soplay/core/navigation/nav_controller.dart';
+import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/download/data/download_service.dart';
 import 'package:soplay/features/download/domain/entities/download_item.dart';
+import 'package:soplay/features/notifications/domain/repositories/notifications_repository.dart';
 
 class HomeTopBar extends StatelessWidget {
   const HomeTopBar({super.key, required this.blurProgress});
@@ -38,7 +42,7 @@ class HomeTopBar extends StatelessWidget {
             onTap: () => getIt<NavController>().goTo(1),
           ),
           _DownloadIndicator(),
-          _TopBarIcon(icon: Icons.notifications_none_rounded, onTap: () {}),
+          const _NotificationsIndicator(),
         ],
       ),
     );
@@ -81,6 +85,124 @@ class HomeTopBar extends StatelessWidget {
                   : null,
             ),
             child: bar,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationsIndicator extends StatefulWidget {
+  const _NotificationsIndicator();
+
+  @override
+  State<_NotificationsIndicator> createState() =>
+      _NotificationsIndicatorState();
+}
+
+class _NotificationsIndicatorState extends State<_NotificationsIndicator>
+    with WidgetsBindingObserver {
+  final NotificationsRepository _repo = getIt<NotificationsRepository>();
+  final HiveService _hive = getIt<HiveService>();
+  Timer? _timer;
+  int _count = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (!_hive.isLoggedIn) {
+      if (_count != 0 && mounted) setState(() => _count = 0);
+      return;
+    }
+    final result = await _repo.unreadCount();
+    if (!mounted) return;
+    switch (result) {
+      case Success(:final value):
+        if (value != _count) setState(() => _count = value);
+      case Failure():
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () async {
+          if (!_hive.isLoggedIn) {
+            await context.push('/login');
+            _refresh();
+            return;
+          }
+          await context.push('/notifications');
+          _refresh();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                if (_count > 0)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      constraints: const BoxConstraints(
+                        minWidth: 14,
+                        minHeight: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(
+                          color: AppColors.navBackground,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _count > 99 ? '99+' : '$_count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

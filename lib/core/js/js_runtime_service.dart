@@ -17,7 +17,7 @@ class JsRuntimeService {
 
   HeadlessInAppWebView? _webView;
   InAppWebViewController? _controller;
-  Completer<void>? _ready;
+  Future<void>? _ready;
   ExtractorManifest? _manifest;
   String? _activeExtractor;
   int? _activeVersion;
@@ -42,15 +42,11 @@ class JsRuntimeService {
   });
 
   Future<void> ensureReady() {
-    final existing = _ready;
-    if (existing != null) return existing.future;
-    final completer = Completer<void>();
-    _ready = completer;
-    _boot().then(completer.complete).catchError((Object e, StackTrace s) {
+    return _ready ??= _boot().catchError((Object e) {
       _ready = null;
-      completer.completeError(e, s);
+      JsLog.err('js', 'boot failed: $e');
+      throw e;
     });
-    return completer.future;
   }
 
   Future<bool> isClientCatalog(String provider) async {

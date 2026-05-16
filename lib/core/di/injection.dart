@@ -18,10 +18,26 @@ import 'package:soplay/features/auth/domain/usecases/resend_otp_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/verify_otp_usecase.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_event.dart';
+import 'package:soplay/features/app_updater/data/datasources/app_updater_data_source.dart';
+import 'package:soplay/features/app_updater/data/repositories/app_updater_repository_impl.dart';
+import 'package:soplay/features/app_updater/domain/repositories/app_updater_repository.dart';
+import 'package:soplay/features/app_updater/presentation/services/update_checker.dart';
+import 'package:soplay/features/banners/data/datasources/banners_data_source.dart';
+import 'package:soplay/features/banners/data/repositories/banners_repository_impl.dart';
+import 'package:soplay/features/banners/domain/repositories/banners_repository.dart';
+import 'package:soplay/features/banners/presentation/bloc/banners_bloc.dart';
 import 'package:soplay/features/comments/data/datasources/comments_data_source.dart';
 import 'package:soplay/features/comments/data/repositories/comments_repository_impl.dart';
 import 'package:soplay/features/comments/domain/repositories/comments_repository.dart';
 import 'package:soplay/features/comments/presentation/blocs/comments_bloc/comments_bloc.dart';
+import 'package:soplay/features/notifications/data/datasources/notifications_data_source.dart';
+import 'package:soplay/features/notifications/data/repositories/notifications_repository_impl.dart';
+import 'package:soplay/features/notifications/data/services/notification_service.dart';
+import 'package:soplay/features/notifications/domain/repositories/notifications_repository.dart';
+import 'package:soplay/features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'package:soplay/features/reports/data/datasources/reports_data_source.dart';
+import 'package:soplay/features/reports/data/repositories/reports_repository_impl.dart';
+import 'package:soplay/features/reports/domain/repositories/reports_repository.dart';
 import 'package:soplay/features/detail/data/datasources/detail_data_source.dart';
 import 'package:soplay/features/detail/data/repositories/detail_repository_impl.dart';
 import 'package:soplay/features/detail/domain/repositories/detail_repository.dart';
@@ -163,6 +179,36 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<ShortsRepository>(
     ShortsRepositoryImpl(getIt<ShortsRemoteDataSource>()),
   );
+  getIt.registerSingleton<NotificationsDataSource>(
+    NotificationsDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<NotificationsRepository>(
+    NotificationsRepositoryImpl(getIt<NotificationsDataSource>()),
+  );
+  getIt.registerSingleton<NotificationService>(
+    NotificationService(repository: getIt<NotificationsRepository>()),
+  );
+  getIt.registerSingleton<BannersDataSource>(
+    BannersDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<BannersRepository>(
+    BannersRepositoryImpl(getIt<BannersDataSource>()),
+  );
+  getIt.registerSingleton<ReportsDataSource>(
+    ReportsDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<ReportsRepository>(
+    ReportsRepositoryImpl(getIt<ReportsDataSource>()),
+  );
+  getIt.registerSingleton<AppUpdaterDataSource>(
+    AppUpdaterDataSource(dio: getIt<Dio>()),
+  );
+  getIt.registerSingleton<AppUpdaterRepository>(
+    AppUpdaterRepositoryImpl(getIt<AppUpdaterDataSource>()),
+  );
+  getIt.registerSingleton<UpdateChecker>(
+    UpdateChecker(repository: getIt<AppUpdaterRepository>()),
+  );
 
   getIt.registerSingleton<MyListRemoteDataSource>(
     MyListRemoteDataSource(dio: getIt<Dio>()),
@@ -233,7 +279,14 @@ Future<void> configureDependencies() async {
       resendOtpUseCase: getIt<ResendOtpUseCase>(),
       authRepository: getIt<AuthRepository>(),
       hiveService: getIt<HiveService>(),
+      notificationService: getIt<NotificationService>(),
     ),
+  );
+  getIt.registerFactory(
+    () => NotificationsBloc(repository: getIt<NotificationsRepository>()),
+  );
+  getIt.registerFactory(
+    () => BannersBloc(repository: getIt<BannersRepository>()),
   );
   getIt.registerFactory(() => DetailBloc(useCase: getIt<GetDetailUseCase>()));
   getIt.registerFactory(

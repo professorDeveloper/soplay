@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/features/auth/presentation/pages/login_page.dart';
 import 'package:soplay/features/auth/presentation/pages/otp_verify_page.dart';
@@ -14,6 +17,7 @@ import 'package:soplay/features/history/presentation/pages/history_page.dart';
 import 'package:soplay/features/home/domain/entities/view_all.dart';
 import 'package:soplay/features/main/presentation/pages/main_page.dart';
 import 'package:soplay/features/network/presentation/pages/no_internet_page.dart';
+import 'package:soplay/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:soplay/features/splash/presentation/pages/splash_page.dart';
 
 import '../../features/home/presentation/pages/home_view_all_page.dart';
@@ -23,6 +27,9 @@ class AppRouter {
 
   static final router = GoRouter(
     initialLocation: '/splash',
+    observers: Platform.isAndroid
+        ? [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)]
+        : [],
     routes: [
       GoRoute(
         path: '/view-all',
@@ -79,6 +86,10 @@ class AppRouter {
       GoRoute(
         path: '/no-internet',
         builder: (context, state) => const NoInternetPage(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
       GoRoute(path: '/main', builder: (context, state) => const MainPage()),

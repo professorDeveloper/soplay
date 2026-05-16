@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:soplay/features/reports/domain/entities/report_payload.dart';
+import 'package:soplay/features/reports/presentation/widgets/report_sheet.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../domain/entities/short_entity.dart';
@@ -516,6 +518,19 @@ class _ShortReelItemState extends State<ShortReelItem>
     );
   }
 
+  Future<void> _onReport(ShortEntity s) async {
+    final ok = await showReportSheet(
+      context,
+      targetType: ReportTargetType.short,
+      targetId: s.id,
+    );
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shikoyat yuborildi, rahmat')),
+      );
+    }
+  }
+
   Widget _buildSideRail() {
     final s = widget.short;
     return Column(
@@ -613,6 +628,17 @@ class _ShortReelItemState extends State<ShortReelItem>
               color: Colors.white,
               size: 18,
             ),
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        _RailButton(
+          onTap: () => _onReport(s),
+          child: const Icon(
+            Icons.flag_outlined,
+            color: Colors.white,
+            size: 26,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
           ),
         ),
         const SizedBox(height: 18),

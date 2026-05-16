@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/error/result.dart';
 import 'package:soplay/core/storage/hive_service.dart';
@@ -8,6 +10,7 @@ import 'package:soplay/features/auth/domain/usecases/register_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/resend_otp_usecase.dart';
 import 'package:soplay/features/auth/domain/usecases/verify_otp_usecase.dart';
 import 'package:soplay/features/auth/presentation/bloc/auth_state.dart';
+import 'package:soplay/features/notifications/data/services/notification_service.dart';
 
 import 'auth_event.dart';
 
@@ -18,6 +21,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ResendOtpUseCase resendOtpUseCase;
   final AuthRepository authRepository;
   final HiveService hiveService;
+  final NotificationService notificationService;
 
   static const Duration _resendCooldown = Duration(seconds: 60);
 
@@ -28,6 +32,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.resendOtpUseCase,
     required this.authRepository,
     required this.hiveService,
+    required this.notificationService,
   }) : super(AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthLoginRequested>(_onLogin);
@@ -46,6 +51,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     await hiveService.clearAuth();
+    await notificationService.unregister();
     emit(AuthInitial());
   }
 
@@ -67,6 +73,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ),
     );
 
+    unawaited(notificationService.setup());
     add(const AuthProfileRefreshRequested());
   }
 
@@ -79,6 +86,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     switch (result) {
       case Success(:final value):
         emit(AuthLoaded(token: value));
+        unawaited(notificationService.setup());
       case Failure(:final error):
         emit(AuthError(message: _friendlyError(error)));
     }
@@ -119,6 +127,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     switch (result) {
       case Success(:final value):
         emit(AuthLoaded(token: value));
+        unawaited(notificationService.setup());
       case Failure(:final error):
         final msg = _friendlyError(error);
         if (current is AuthOtpPending) {
@@ -172,6 +181,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
+    await notificationService.unregister();
     await authRepository.logout();
     emit(AuthInitial());
   }

@@ -4,9 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/banners/domain/entities/banner_item.dart';
+import 'package:soplay/features/banners/presentation/bloc/banners_bloc.dart';
 import 'package:soplay/features/history/data/history_service.dart';
 import 'package:soplay/features/history/domain/entities/history_item.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:soplay/features/home/domain/entities/hero_slide.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/widgets/home_banner.dart';
@@ -101,6 +104,56 @@ class _HomeContentState extends State<HomeContent> {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
 
+    return BlocProvider<BannersBloc>(
+      create: (_) =>
+          getIt<BannersBloc>()..add(BannersLoad(BannerPlacement.homeTop)),
+      child: _HomeContentBody(
+        state: widget.state,
+        topPad: topPad,
+        scrollController: _scrollController,
+        blurProgress: _blurProgress,
+        historyItems: _historyItems,
+        onRefresh: () async {
+          context.read<HomeBloc>().add(HomeLoad(silent: true));
+          await Future.wait([
+            context.read<HomeBloc>().stream.firstWhere(
+              (state) => state is HomeLoaded || state is HomeError,
+            ),
+            Future<void>.delayed(const Duration(milliseconds: 850)),
+          ]);
+          _loadHistory();
+        },
+      ),
+    );
+  }
+}
+
+class _HomeContentBody extends StatelessWidget {
+  const _HomeContentBody({
+    required this.state,
+    required this.topPad,
+    required this.scrollController,
+    required this.blurProgress,
+    required this.historyItems,
+    required this.onRefresh,
+  });
+
+  final HomeLoaded state;
+  final double topPad;
+  final ScrollController scrollController;
+  final ValueNotifier<double> blurProgress;
+  final List<HistoryItem> historyItems;
+  final Future<void> Function() onRefresh;
+
+  List<HeroSlide> _composeSlides(List<BannerItem> cmsBanners) {
+    return [
+      for (final m in state.homeData.banner) MovieHeroSlide(m),
+      for (final b in cmsBanners) BannerHeroSlide(b),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       children: [
         RefreshIndicator(
@@ -109,58 +162,58 @@ class _HomeContentState extends State<HomeContent> {
           edgeOffset: topPad + 10,
           displacement: topPad + 10,
           strokeWidth: 2.6,
-          onRefresh: () async {
-            context.read<HomeBloc>().add(HomeLoad(silent: true));
-            await Future.wait([
-              context.read<HomeBloc>().stream.firstWhere(
-                (state) => state is HomeLoaded || state is HomeError,
-              ),
-              Future<void>.delayed(const Duration(milliseconds: 850)),
-            ]);
-            _loadHistory();
-          },
-          child: CustomScrollView(
-            controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: HomeBanner(
-                  banners: widget.state.homeData.banner,
-                  topPadding: topPad,
-                ),
-              ),
-              if (_historyItems.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: RepaintBoundary(
-                    child: HistorySection(items: _historyItems),
-                  ),
-                ),
-              if (widget.state.genres.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: RepaintBoundary(
-                    child: _GenreSection(genres: widget.state.genres),
-                  ),
-                ),
-              if (widget.state.collectionLoading)
-                const SliverToBoxAdapter(child: CollectionLoadingRow()),
-              for (final section in widget.state.homeData.sections)
-                if (section.items.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: RepaintBoundary(
-                      child: MovieSection(
-                        title: section.label,
-                        movies: section.items,
-                        type: section.viewAll.type,
-                        slug: section.viewAll.slug,
+          onRefresh: onRefresh,
+          child: BlocBuilder<BannersBloc, BannersState>(
+            builder: (context, bannersState) {
+              final slides = _composeSlides(bannersState.items);
+              final showHero = slides.isNotEmpty || bannersState.loading;
+              return CustomScrollView(
+                controller: scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  if (showHero)
+                    SliverToBoxAdapter(
+                      child: HomeBanner(
+                        slides: slides,
+                        topPadding: topPad,
+                        showSkeleton: state.homeData.banner.isEmpty &&
+                            bannersState.loading,
                       ),
                     ),
+                  if (historyItems.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: RepaintBoundary(
+                        child: HistorySection(items: historyItems),
+                      ),
+                    ),
+                  if (state.genres.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: RepaintBoundary(
+                        child: _GenreSection(genres: state.genres),
+                      ),
+                    ),
+                  if (state.collectionLoading)
+                    const SliverToBoxAdapter(child: CollectionLoadingRow()),
+                  for (final section in state.homeData.sections)
+                    if (section.items.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: RepaintBoundary(
+                          child: MovieSection(
+                            title: section.label,
+                            movies: section.items,
+                            type: section.viewAll.type,
+                            slug: section.viewAll.slug,
+                          ),
+                        ),
+                      ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: MediaQuery.paddingOf(context).bottom + 16,
+                    ),
                   ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: MediaQuery.paddingOf(context).bottom + 16,
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
         Positioned(
@@ -168,7 +221,7 @@ class _HomeContentState extends State<HomeContent> {
           left: 0,
           right: 0,
           child: ValueListenableBuilder<double>(
-            valueListenable: _blurProgress,
+            valueListenable: blurProgress,
             builder: (_, progress, _) => HomeTopBar(blurProgress: progress),
           ),
         ),

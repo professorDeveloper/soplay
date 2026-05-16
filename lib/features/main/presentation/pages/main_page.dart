@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soplay/core/di/injection.dart';
 import 'package:soplay/core/storage/hive_service.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/app_updater/presentation/services/update_checker.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_bloc.dart';
 import 'package:soplay/features/home/presentation/bloc/home/home_event.dart';
 import 'package:soplay/features/home/presentation/pages/home_page.dart';
@@ -30,7 +31,7 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   static const int _shortsIndex = 2;
 
   final GlobalKey _shortsRefreshShowcaseKey = GlobalKey();
@@ -47,6 +48,7 @@ class _MainPageState extends State<MainPage> {
     _navController = getIt<NavController>();
     _hiveService = getIt<HiveService>();
     _navController.index.addListener(_onNavChange);
+    WidgetsBinding.instance.addObserver(this);
     ShowcaseView.register(
       blurValue: 1.5,
       overlayColor: Colors.black,
@@ -54,6 +56,18 @@ class _MainPageState extends State<MainPage> {
       onFinish: _markShortsShowcaseSeen,
       onDismiss: (_) => _markShortsShowcaseSeen(),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      getIt<UpdateChecker>().run(context);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && mounted) {
+      getIt<UpdateChecker>().run(context);
+    }
   }
 
   void _onNavChange() {
@@ -63,6 +77,7 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _navController.index.removeListener(_onNavChange);
     ShowcaseView.get().unregister();
     super.dispose();

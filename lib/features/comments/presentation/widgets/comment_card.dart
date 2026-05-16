@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:soplay/core/theme/app_colors.dart';
 import 'package:soplay/features/comments/domain/entities/comment_entity.dart';
+import 'package:soplay/features/reports/domain/entities/report_payload.dart';
+import 'package:soplay/features/reports/presentation/widgets/report_sheet.dart';
 import 'comment_avatar.dart';
 
 class CommentCard extends StatelessWidget {
@@ -28,6 +30,19 @@ class CommentCard extends StatelessWidget {
   final VoidCallback onToggleReplies;
   final bool repliesExpanded;
   final bool compact;
+
+  Future<void> _onReport(BuildContext context) async {
+    final ok = await showReportSheet(
+      context,
+      targetType: ReportTargetType.comment,
+      targetId: comment.id,
+    );
+    if (ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shikoyat yuborildi, rahmat')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,10 +92,14 @@ class CommentCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (isOwner) ...[
-                      const Spacer(),
-                      _MoreButton(onEdit: onEdit, onDelete: onDelete),
-                    ],
+                    const Spacer(),
+                    _MoreButton(
+                      isOwner: isOwner,
+                      canReport: canInteract && !isOwner,
+                      onEdit: onEdit,
+                      onDelete: onDelete,
+                      onReport: () => _onReport(context),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -184,12 +203,22 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _MoreButton extends StatelessWidget {
-  const _MoreButton({required this.onEdit, required this.onDelete});
+  const _MoreButton({
+    required this.isOwner,
+    required this.canReport,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onReport,
+  });
+  final bool isOwner;
+  final bool canReport;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
+    if (!isOwner && !canReport) return const SizedBox.shrink();
     return PopupMenuButton<String>(
       icon: const Icon(
         Icons.more_horiz_rounded,
@@ -199,33 +228,50 @@ class _MoreButton extends StatelessWidget {
       color: AppColors.surface,
       padding: EdgeInsets.zero,
       onSelected: (value) {
-        if (value == 'edit') onEdit();
-        if (value == 'delete') onDelete();
+        switch (value) {
+          case 'edit':
+            onEdit();
+          case 'delete':
+            onDelete();
+          case 'report':
+            onReport();
+        }
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit_rounded, size: 16, color: Colors.white70),
-              SizedBox(width: 8),
-              Text('Edit', style: TextStyle(color: Colors.white)),
-            ],
+      itemBuilder: (_) => [
+        if (isOwner)
+          const PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                Icon(Icons.edit_rounded, size: 16, color: Colors.white70),
+                SizedBox(width: 8),
+                Text('Edit', style: TextStyle(color: Colors.white)),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete_rounded, size: 16, color: Colors.redAccent),
-              SizedBox(width: 8),
-              Text(
-                'Delete',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-            ],
+        if (isOwner)
+          const PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_rounded, size: 16, color: Colors.redAccent),
+                SizedBox(width: 8),
+                Text('Delete', style: TextStyle(color: Colors.redAccent)),
+              ],
+            ),
           ),
-        ),
+        if (canReport)
+          const PopupMenuItem(
+            value: 'report',
+            child: Row(
+              children: [
+                Icon(Icons.flag_rounded, size: 16, color: Colors.orangeAccent),
+                SizedBox(width: 8),
+                Text('Shikoyat qilish',
+                    style: TextStyle(color: Colors.orangeAccent)),
+              ],
+            ),
+          ),
       ],
     );
   }

@@ -1,22 +1,30 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soplay/core/theme/app_colors.dart';
+import 'package:soplay/features/banners/domain/entities/banner_item.dart';
+import 'package:soplay/features/banners/presentation/bloc/banners_bloc.dart';
 import 'package:soplay/features/detail/domain/entities/detail_args.dart';
+import 'package:soplay/features/home/domain/entities/hero_slide.dart';
 import 'package:soplay/features/home/domain/entities/movie.dart';
 import 'package:soplay/features/home/presentation/widgets/home_shared_widgets.dart';
 import 'package:soplay/features/home/presentation/widgets/home_ui_helpers.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeBanner extends StatefulWidget {
   const HomeBanner({
     super.key,
-    required this.banners,
+    required this.slides,
     required this.topPadding,
+    this.showSkeleton = true,
   });
 
-  final List<MovieEntity> banners;
+  final List<HeroSlide> slides;
   final double topPadding;
+  final bool showSkeleton;
 
   @override
   State<HomeBanner> createState() => _HomeBannerState();
@@ -26,24 +34,45 @@ class _HomeBannerState extends State<HomeBanner> {
   late final PageController _ctrl;
   Timer? _timer;
   int _page = 0;
+  final Set<String> _trackedBanners = {};
 
   @override
   void initState() {
     super.initState();
     _ctrl = PageController();
     _startTimer();
+    _trackBannerView(0);
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || widget.banners.length < 2) return;
-      final next = (_page + 1) % widget.banners.length;
+      if (!mounted || widget.slides.length < 2) return;
+      final next = (_page + 1) % widget.slides.length;
       _ctrl.animateToPage(
         next,
         duration: const Duration(milliseconds: 700),
         curve: Curves.easeInOutCubic,
       );
     });
+  }
+
+  void _trackBannerView(int index) {
+    if (index >= widget.slides.length) return;
+    final slide = widget.slides[index];
+    if (slide is BannerHeroSlide && _trackedBanners.add(slide.banner.id)) {
+      if (mounted) {
+        context.read<BannersBloc>().add(BannersView(slide.banner.id));
+      }
+    }
+  }
+
+  Future<void> _onBannerTap(BannerItem item) async {
+    context.read<BannersBloc>().add(BannersClick(item.id));
+    final link = item.link;
+    if (link == null || link.isEmpty) return;
+    final uri = Uri.tryParse(link);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -55,8 +84,10 @@ class _HomeBannerState extends State<HomeBanner> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.banners.isEmpty) {
-      return HomeBannerSkeleton(topPadding: widget.topPadding);
+    if (widget.slides.isEmpty) {
+      return widget.showSkeleton
+          ? HomeBannerSkeleton(topPadding: widget.topPadding)
+          : const SizedBox.shrink();
     }
     final height = (MediaQuery.of(context).size.height * 0.63).clamp(
       440.0,
@@ -71,12 +102,16 @@ class _HomeBannerState extends State<HomeBanner> {
             controller: _ctrl,
             allowImplicitScrolling: true,
             physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
-            itemCount: widget.banners.length,
-            onPageChanged: (i) => _page = i,
+            itemCount: widget.slides.length,
+            onPageChanged: (i) {
+              _page = i;
+              _trackBannerView(i);
+            },
             itemBuilder: (_, index) {
+              final slide = widget.slides[index];
               return AnimatedBuilder(
                 animation: _ctrl,
-                child: _BannerSlide(movie: widget.banners[index]),
+                child: _SlideContent(slide: slide, onBannerTap: _onBannerTap),
                 builder: (context, child) {
                   var page = index.toDouble();
                   if (_ctrl.position.haveDimensions) {
@@ -104,8 +139,26 @@ class _HomeBannerState extends State<HomeBanner> {
   }
 }
 
-class _BannerSlide extends StatelessWidget {
-  const _BannerSlide({required this.movie});
+class _SlideContent extends StatelessWidget {
+  const _SlideContent({required this.slide, required this.onBannerTap});
+
+  final HeroSlide slide;
+  final Future<void> Function(BannerItem item) onBannerTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (slide) {
+      MovieHeroSlide(:final movie) => _MovieSlide(movie: movie),
+      BannerHeroSlide(:final banner) => _BannerSlide(
+          banner: banner,
+          onTap: () => onBannerTap(banner),
+        ),
+    };
+  }
+}
+
+class _MovieSlide extends StatelessWidget {
+  const _MovieSlide({required this.movie});
 
   final MovieEntity movie;
 
@@ -114,16 +167,19 @@ class _BannerSlide extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (movie.url.isNotEmpty) {
-          context.push('/detail', extra: DetailArgs(contentUrl: movie.url, preview: movie));
+          context.push(
+            '/detail',
+            extra: DetailArgs(contentUrl: movie.url, preview: movie),
+          );
         }
       },
-      child: _BannerSlideContent(movie: movie),
+      child: _MovieSlideContent(movie: movie),
     );
   }
 }
 
-class _BannerSlideContent extends StatelessWidget {
-  const _BannerSlideContent({required this.movie});
+class _MovieSlideContent extends StatelessWidget {
+  const _MovieSlideContent({required this.movie});
   final MovieEntity movie;
 
   @override
@@ -136,6 +192,59 @@ class _BannerSlideContent extends StatelessWidget {
           borderRadius: BorderRadius.zero,
           placeholderIcon: Icons.movie_creation_outlined,
         ),
+        const _SlideOverlays(),
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 34,
+          child: _MovieInfo(movie: movie),
+        ),
+      ],
+    );
+  }
+}
+
+class _BannerSlide extends StatelessWidget {
+  const _BannerSlide({required this.banner, required this.onTap});
+
+  final BannerItem banner;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CachedNetworkImage(
+            imageUrl: banner.imageUrl,
+            fit: BoxFit.cover,
+            errorWidget: (_, _, _) => const ColoredBox(
+              color: AppColors.surfaceVariant,
+            ),
+          ),
+          const _SlideOverlays(),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 34,
+            child: _BannerInfo(banner: banner),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SlideOverlays extends StatelessWidget {
+  const _SlideOverlays();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
         const DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -176,19 +285,13 @@ class _BannerSlideContent extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          left: 20,
-          right: 20,
-          bottom: 34,
-          child: _BannerInfo(movie: movie),
-        ),
       ],
     );
   }
 }
 
-class _BannerInfo extends StatelessWidget {
-  const _BannerInfo({required this.movie});
+class _MovieInfo extends StatelessWidget {
+  const _MovieInfo({required this.movie});
 
   final MovieEntity movie;
 
@@ -208,7 +311,6 @@ class _BannerInfo extends StatelessWidget {
         Text(
           movieTitle(movie),
           maxLines: 1,
-
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppColors.textPrimary,
@@ -225,7 +327,7 @@ class _BannerInfo extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           movieDescription(movie),
           maxLines: 2,
@@ -238,6 +340,55 @@ class _BannerInfo extends StatelessWidget {
             letterSpacing: -0.3,
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _BannerInfo extends StatelessWidget {
+  const _BannerInfo({required this.banner});
+
+  final BannerItem banner;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          banner.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+            height: 1.08,
+            letterSpacing: -0.3,
+            shadows: [
+              Shadow(
+                color: Colors.black87,
+                blurRadius: 16,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+        ),
+        if (banner.subtitle != null && banner.subtitle!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            banner.subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.08,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
       ],
     );
   }
